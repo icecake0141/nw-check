@@ -15,8 +15,8 @@ from nw_check.diff import (
     STATUS_DEVICE_MISMATCH,
     STATUS_EXACT_MATCH,
     STATUS_MISSING_ASIS,
-    STATUS_PORT_MISMATCH,
     STATUS_PARTIAL_OBSERVED,
+    STATUS_PORT_MISMATCH,
     diff_links,
 )
 from nw_check.models import AsIsLink, LinkIntent
