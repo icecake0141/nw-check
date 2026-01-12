@@ -225,7 +225,7 @@ Sorting:
 
 ### Sample Input Expectations
 
-- Use provided sample CSVs to validate:
+- Use provided sample CSVs in `samples/` to validate:
   - Exact match detection
   - Port mismatch detection
   - Missing As-Is link detection
