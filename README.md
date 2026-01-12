@@ -160,6 +160,11 @@
 - Format: `python -m ruff format`
 - Static analysis: `python -m mypy nw_check`
 
+### Continuous Integration
+
+- GitHub Actions runs formatting checks, linting, type checks, tests, and pre-commit hooks on
+  pushes and pull requests.
+
 ### Arguments
 
 - `--devices`: path to device inventory CSV
