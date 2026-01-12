@@ -30,6 +30,7 @@ class Device:
     snmp_user: str | None = None
     snmp_auth: str | None = None
     snmp_priv: str | None = None
+    aliases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,3 @@
+device_a,port_a,device_b,port_b
+leaf01,Eth1/1,spine01,Eth1/1
+leaf01,Eth1/2,spine01,Eth1/2

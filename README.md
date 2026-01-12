@@ -101,6 +101,7 @@
 - Device identity normalization:
   - Prefer inventory device name as canonical.
   - Resolve LLDP `sysName` to inventory using exact match or configured alias map.
+    - Device inventory can include an `aliases` column with comma-separated names.
   - If only chassis ID is available, keep as `remote_device_id` and mark uncertainty.
 
 ## Link Inference + Deduplication
@@ -219,7 +220,7 @@ Sorting:
 
 ### Sample Input Expectations
 
-- Use provided sample CSVs to validate:
+- Use provided sample CSVs in `samples/` to validate:
   - Exact match detection
   - Port mismatch detection
   - Missing As-Is link detection

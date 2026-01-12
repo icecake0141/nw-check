@@ -23,10 +23,15 @@ def deduplicate_links(observations: list[LinkObservation]) -> list[AsIsLink]:
 
     grouped: dict[tuple[str, str, str, str], list[LinkObservation]] = defaultdict(list)
     for obs in observations:
+        remote_device = (
+            obs.remote_device_id
+            if obs.remote_device_name == UNKNOWN_VALUE
+            else obs.remote_device_name
+        )
         device_a, port_a, device_b, port_b = _canonicalize(
             obs.local_device,
             obs.local_port_norm,
-            obs.remote_device_name or obs.remote_device_id,
+            remote_device,
             obs.remote_port_norm,
         )
         grouped[(device_a, port_a, device_b, port_b)].append(obs)

@@ -42,6 +42,7 @@ def collect_lldp_observations(
     devices: Iterable[Device],
     timeout: int,
     retries: int,
+    alias_map: dict[str, str] | None = None,
     snmpwalk_cmd: str = "snmpwalk",
 ) -> tuple[list[LinkObservation], list[str]]:
     """Collect LLDP neighbor data from devices via SNMP walk."""
@@ -49,7 +50,7 @@ def collect_lldp_observations(
     all_observations: list[LinkObservation] = []
     failed_devices: list[str] = []
     for device in devices:
-        result = _collect_for_device(device, timeout, retries, snmpwalk_cmd)
+        result = _collect_for_device(device, timeout, retries, alias_map, snmpwalk_cmd)
         all_observations.extend(result.observations)
         if result.errors:
             failed_devices.append(device.name)
@@ -60,6 +61,7 @@ def _collect_for_device(
     device: Device,
     timeout: int,
     retries: int,
+    alias_map: dict[str, str] | None,
     snmpwalk_cmd: str,
 ) -> DeviceCollectionResult:
     """Collect LLDP data for a single device using snmpwalk."""
@@ -94,7 +96,7 @@ def _collect_for_device(
         local_port_raw = loc_ports.get(row.local_port) or UNKNOWN_VALUE
         local_port_norm = normalize_interface_name(local_port_raw)
         remote_port_norm = normalize_interface_name(row.remote_port)
-        remote_device_name = row.remote_sys_name or UNKNOWN_VALUE
+        remote_device_name = _resolve_device_name(row.remote_sys_name, alias_map)
         confidence = "observed"
         error_list: list[str] = []
         if remote_device_name == UNKNOWN_VALUE or row.remote_port == UNKNOWN_VALUE:
@@ -116,6 +118,16 @@ def _collect_for_device(
         )
 
     return DeviceCollectionResult(observations, errors)
+
+
+def _resolve_device_name(raw_name: str, alias_map: dict[str, str] | None) -> str:
+    """Resolve raw LLDP system name to a canonical device name."""
+
+    if not raw_name:
+        return UNKNOWN_VALUE
+    if alias_map is None:
+        return raw_name
+    return alias_map.get(raw_name.lower(), raw_name)
 
 
 def _command_exists(command: str) -> bool:
