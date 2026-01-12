@@ -99,7 +99,7 @@ def _collect_for_device(
         remote_device_name = _resolve_device_name(row.remote_sys_name, alias_map)
         confidence = "observed"
         error_list: list[str] = []
-        if remote_device_name == UNKNOWN_VALUE or row.remote_port == UNKNOWN_VALUE:
+        if UNKNOWN_VALUE in (remote_device_name, row.remote_port):
             confidence = "partial"
             error_list.append("LLDP_PARTIAL_ROW")
         observations.append(
