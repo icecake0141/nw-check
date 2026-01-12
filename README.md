@@ -142,6 +142,23 @@
 
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/`
 
+### Getting Started
+
+1. Create a virtual environment and install dependencies:
+   - `python -m venv .venv`
+   - `source .venv/bin/activate`
+   - `python -m pip install -e .[dev]`
+2. Ensure the `snmpwalk` CLI is available on your PATH for LLDP collection.
+3. Run the CLI with your inventory and intent CSVs:
+   - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/`
+
+### Development Commands
+
+- Tests: `python -m pytest`
+- Lint: `python -m pylint nw_check`
+- Format: `python -m ruff format`
+- Static analysis: `python -m mypy nw_check`
+
 ### Arguments
 
 - `--devices`: path to device inventory CSV
