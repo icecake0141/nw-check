@@ -71,7 +71,7 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
                         tobe_link=intent,
                         asis_link=candidate,
                         status=STATUS_PARTIAL_OBSERVED,
-                        reason="partial LLDP observation",
+                        reason=_partial_reason(candidate),
                     )
                 )
                 continue
@@ -139,6 +139,24 @@ def _find_candidates(intent: LinkIntent, asis_links: list[AsIsLink]) -> list[AsI
         }
         if devices_match or ports_match:
             candidates.append(link)
+            continue
+        if UNKNOWN_VALUE in {link.device_a, link.device_b, link.port_a, link.port_b}:
+            device_overlap = intent.device_a in {
+                link.device_a,
+                link.device_b,
+            } or intent.device_b in {
+                link.device_a,
+                link.device_b,
+            }
+            port_overlap = intent.port_a_norm in {
+                link.port_a,
+                link.port_b,
+            } or intent.port_b_norm in {
+                link.port_a,
+                link.port_b,
+            }
+            if device_overlap or port_overlap:
+                candidates.append(link)
     return candidates
 
 
@@ -160,6 +178,13 @@ def _is_partial(link: AsIsLink) -> bool:
         link.port_a,
         link.port_b,
     }
+
+
+def _partial_reason(candidate: AsIsLink) -> str:
+    """Build a reason string for partial observations."""
+
+    details = _format_candidates([candidate])
+    return f"partial LLDP observation: {details}"
 
 
 def _has_device_match(intent: LinkIntent, asis_links: list[AsIsLink]) -> bool:
