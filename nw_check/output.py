@@ -85,7 +85,7 @@ def write_summary(
 ) -> None:
     """Write summary report."""
 
-    lldp_failed_devices = sorted({error for error in errors})
+    lldp_failed_devices = sorted(set(errors))
     missing_ports = sum(
         1 for link in asis_links for port in (link.port_a, link.port_b) if port == UNKNOWN_VALUE
     )
