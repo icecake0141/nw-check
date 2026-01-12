@@ -18,7 +18,11 @@ import logging
 from pathlib import Path
 
 from nw_check.diff import diff_links
-from nw_check.inventory import load_device_inventory, load_link_intents
+from nw_check.inventory import (
+    build_device_alias_map,
+    load_device_inventory,
+    load_link_intents,
+)
 from nw_check.link_infer import deduplicate_links
 from nw_check.lldp_snmp import collect_lldp_observations
 from nw_check.output import write_asis_links, write_diff_links, write_summary
@@ -60,13 +64,19 @@ def main() -> int:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    devices = load_device_inventory(args.devices)
-    tobe_links = load_link_intents(args.tobe)
+    try:
+        devices = load_device_inventory(args.devices)
+        tobe_links = load_link_intents(args.tobe)
+    except ValueError as exc:
+        _LOGGER.error("Invalid input: %s", exc)
+        return 3
+    alias_map = build_device_alias_map(devices)
 
     observations, errors = collect_lldp_observations(
         devices=devices,
         timeout=args.snmp_timeout,
         retries=args.snmp_retries,
+        alias_map=alias_map,
     )
     _LOGGER.info("Collected %s observations", len(observations))
 
@@ -75,7 +85,7 @@ def main() -> int:
 
     write_asis_links(out_dir / "asis_links.csv", asis_links)
     write_diff_links(out_dir / "diff_links.csv", diffs)
-    write_summary(out_dir / "summary.txt", diffs, errors)
+    write_summary(out_dir / "summary.txt", diffs, errors, asis_links)
 
     if errors:
         return 2

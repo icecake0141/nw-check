@@ -71,3 +71,24 @@ def test_deduplicate_links_handles_partial() -> None:
     deduped = deduplicate_links(observations)
 
     assert deduped[0].confidence == "partial"
+
+
+def test_deduplicate_links_uses_remote_device_id_when_name_unknown() -> None:
+    observations = [
+        LinkObservation(
+            local_device="leaf03",
+            local_port_raw="Eth1/2",
+            local_port_norm="Eth1/2",
+            remote_device_id="chassis99",
+            remote_device_name="unknown",
+            remote_port_raw="Eth1/10",
+            remote_port_norm="Eth1/10",
+            source="lldp",
+            confidence="partial",
+            errors=("LLDP_PARTIAL_ROW",),
+        )
+    ]
+
+    deduped = deduplicate_links(observations)
+
+    assert "chassis99" in {deduped[0].device_a, deduped[0].device_b}

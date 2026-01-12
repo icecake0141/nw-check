@@ -16,7 +16,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from nw_check.models import AsIsLink, LinkDiff
+from nw_check.models import UNKNOWN_VALUE, AsIsLink, LinkDiff
 
 
 def write_asis_links(path: str | Path, links: list[AsIsLink]) -> None:
@@ -77,11 +77,18 @@ def write_diff_links(path: str | Path, diffs: list[LinkDiff]) -> None:
             )
 
 
-def write_summary(path: str | Path, diffs: list[LinkDiff], errors: list[str]) -> None:
+def write_summary(
+    path: str | Path,
+    diffs: list[LinkDiff],
+    errors: list[str],
+    asis_links: list[AsIsLink],
+) -> None:
     """Write summary report."""
 
     lldp_failed_devices = sorted({error for error in errors})
-    missing_ports = sum(1 for diff in diffs if diff.status == "PARTIAL_OBSERVED")
+    missing_ports = sum(
+        1 for link in asis_links for port in (link.port_a, link.port_b) if port == UNKNOWN_VALUE
+    )
     mismatch_links = sum(1 for diff in diffs if diff.status != "EXACT_MATCH")
 
     with Path(path).open("w", encoding="utf-8") as handle:
