@@ -11,7 +11,13 @@
 # Review required for correctness, security, and licensing.
 """Tests for LLDP SNMP parsing utilities."""
 
-from nw_check.lldp_snmp import _parse_loc_port_table, _parse_rem_table, _resolve_device_name
+from nw_check.lldp_snmp import (
+    _build_snmpwalk_command,
+    _parse_loc_port_table,
+    _parse_rem_table,
+    _resolve_device_name,
+)
+from nw_check.models import Device
 
 
 def test_resolve_device_name_uses_alias_map() -> None:
@@ -41,3 +47,40 @@ def test_parse_rem_table_groups_rows() -> None:
     assert rows[0].remote_chassis == "chassisA"
     assert rows[0].remote_port == "Eth1/1"
     assert rows[0].remote_sys_name == "spine01"
+
+
+def test_build_snmpwalk_command_snmpv3_auth_priv() -> None:
+    device = Device(
+        name="leaf01",
+        mgmt_ip="10.0.0.1",
+        snmp_version="3",
+        snmp_user="snmpuser",
+        snmp_auth="sha:authpass",
+        snmp_priv="aes:privpass",
+    )
+
+    command = _build_snmpwalk_command("snmpwalk", device, 2, 1, "LLDP-MIB::lldpRemTable")
+
+    assert command == [
+        "snmpwalk",
+        "-v",
+        "3",
+        "-t",
+        "2",
+        "-r",
+        "1",
+        "-l",
+        "authPriv",
+        "-u",
+        "snmpuser",
+        "-a",
+        "sha",
+        "-A",
+        "authpass",
+        "-x",
+        "aes",
+        "-X",
+        "privpass",
+        "10.0.0.1",
+        "LLDP-MIB::lldpRemTable",
+    ]

@@ -67,7 +67,7 @@ def _collect_for_device(
     """Collect LLDP data for a single device using snmpwalk."""
 
     errors: list[str] = []
-    if not device.snmp_community:
+    if not _validate_snmp_credentials(device):
         errors.append("SNMP_AUTH_FAILED")
         return DeviceCollectionResult([], errors)
 
@@ -136,6 +136,96 @@ def _command_exists(command: str) -> bool:
     return Path(command).is_file() or bool(shutil.which(command))
 
 
+def _validate_snmp_credentials(device: Device) -> bool:
+    """Validate SNMP credentials for the configured version."""
+
+    version = device.snmp_version.strip().lower()
+    if version in {"3", "v3"}:
+        if not device.snmp_user:
+            return False
+        auth = _parse_snmpv3_credential(device.snmp_auth)
+        priv = _parse_snmpv3_credential(device.snmp_priv)
+        if priv and not auth:
+            return False
+        if device.snmp_auth and not auth:
+            return False
+        if device.snmp_priv and not priv:
+            return False
+        return True
+    return bool(device.snmp_community)
+
+
+def _build_snmpwalk_command(
+    snmpwalk_cmd: str,
+    device: Device,
+    timeout: int,
+    retries: int,
+    oid: str,
+) -> list[str]:
+    """Build a snmpwalk command list based on device credentials."""
+
+    version_raw = device.snmp_version.strip().lower()
+    if version_raw in {"v1"}:
+        version = "1"
+    elif version_raw in {"v2c"}:
+        version = "2c"
+    elif version_raw in {"v3"}:
+        version = "3"
+    else:
+        version = device.snmp_version.strip()
+    command = [
+        snmpwalk_cmd,
+        "-v",
+        version,
+        "-t",
+        str(timeout),
+        "-r",
+        str(retries),
+    ]
+
+    if version_raw in {"3", "v3"}:
+        command.extend(_snmpv3_args(device))
+    else:
+        command.extend(["-c", device.snmp_community or ""])
+
+    command.extend([device.mgmt_ip, oid])
+    return command
+
+
+def _snmpv3_args(device: Device) -> list[str]:
+    """Build SNMPv3 auth/priv arguments for snmpwalk."""
+
+    auth = _parse_snmpv3_credential(device.snmp_auth)
+    priv = _parse_snmpv3_credential(device.snmp_priv)
+    if priv and auth:
+        level = "authPriv"
+    elif auth:
+        level = "authNoPriv"
+    else:
+        level = "noAuthNoPriv"
+
+    args = ["-l", level, "-u", device.snmp_user or ""]
+    if auth:
+        args.extend(["-a", auth[0], "-A", auth[1]])
+    if priv:
+        args.extend(["-x", priv[0], "-X", priv[1]])
+    return args
+
+
+def _parse_snmpv3_credential(raw: str | None) -> tuple[str, str] | None:
+    """Parse SNMPv3 credential fields in the form protocol:secret."""
+
+    if not raw:
+        return None
+    parts = raw.split(":", 1)
+    if len(parts) != 2:
+        return None
+    protocol, secret = (part.strip() for part in parts)
+    if not protocol or not secret:
+        return None
+    return protocol, secret
+
+
 def _run_snmpwalk(
     snmpwalk_cmd: str,
     device: Device,
@@ -145,19 +235,7 @@ def _run_snmpwalk(
 ) -> list[str] | None:
     """Run snmpwalk and return output lines, or None on failure."""
 
-    command = [
-        snmpwalk_cmd,
-        "-v",
-        device.snmp_version,
-        "-c",
-        device.snmp_community or "",
-        "-t",
-        str(timeout),
-        "-r",
-        str(retries),
-        device.mgmt_ip,
-        oid,
-    ]
+    command = _build_snmpwalk_command(snmpwalk_cmd, device, timeout, retries, oid)
     _LOGGER.debug("Running snmpwalk: %s", " ".join(command))
     try:
         result = subprocess.run(
