@@ -38,6 +38,7 @@ class DeviceCollectionResult:
     errors: list[str]
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def collect_lldp_observations(
     devices: Iterable[Device],
     timeout: int,
@@ -58,6 +59,7 @@ def collect_lldp_observations(
     return all_observations, failed_devices
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _collect_for_device(
     device: Device,
     timeout: int,
@@ -237,6 +239,7 @@ def _parse_snmpv3_credential(raw: str | None) -> tuple[str, str] | None:
     return protocol, secret
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _run_snmpwalk(
     snmpwalk_cmd: str,
     device: Device,
