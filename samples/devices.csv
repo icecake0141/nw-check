@@ -1,3 +1,3 @@
-name,mgmt_ip,snmp_version,snmp_community,aliases
-leaf01,10.0.0.1,2c,public,"leaf-1,leaf-one"
-spine01,10.0.0.2,2c,public,spine-1
+name,mgmt_ip,snmp_version,snmp_community,snmp_user,snmp_auth,snmp_priv,aliases
+leaf01,10.0.0.1,2c,public,,,,"leaf-1,leaf-one"
+spine01,10.0.0.2,3,,snmpuser,sha:authpass,aes:privpass,spine-1

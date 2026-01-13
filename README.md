@@ -26,7 +26,7 @@
 - No continuous discovery; only manual execution for initial build and wiring changes.
 - No real-time correlation with interface state (up/down) beyond LLDP availability.
 - No vendor-specific proprietary discovery beyond standard LLDP-MIB in initial scope.
-- SNMPv3 support is deferred to a later phase; design should allow extension.
+- SNMPv1, v2c, and v3 are supported for LLDP collection.
 
 ## Data Model
 
@@ -35,7 +35,7 @@
 - **Device**
   - `name`: canonical device name from inventory
   - `mgmt_ip`: management IP address
-  - `snmp`: version and credentials
+- `snmp`: version and credentials (community for v1/v2c, user/auth/priv for v3)
 - **Interface**
   - `device`: canonical device name
   - `name_raw`: raw interface name
@@ -152,6 +152,18 @@
 2. Ensure the `snmpwalk` CLI is available on your PATH for LLDP collection.
 3. Run the CLI with your inventory and intent CSVs:
    - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/`
+
+### Device Inventory CSV
+
+Columns:
+- `name` (required)
+- `mgmt_ip` (required)
+- `snmp_version` (required; `1`, `2c`, or `3`)
+- `snmp_community` (required for SNMPv1/v2c)
+- `snmp_user` (required for SNMPv3)
+- `snmp_auth` (optional for SNMPv3, format `protocol:secret`, e.g. `sha:authpass`)
+- `snmp_priv` (optional for SNMPv3, format `protocol:secret`, e.g. `aes:privpass`)
+- `aliases` (optional, comma-separated)
 
 ### Development Commands
 
