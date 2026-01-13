@@ -13,8 +13,10 @@
 
 from nw_check.lldp_snmp import (
     _build_snmpwalk_command,
+    _classify_snmpwalk_error,
     _parse_loc_port_table,
     _parse_rem_table,
+    _redact_snmp_command,
     _resolve_device_name,
 )
 from nw_check.models import Device
@@ -84,3 +86,43 @@ def test_build_snmpwalk_command_snmpv3_auth_priv() -> None:
         "10.0.0.1",
         "LLDP-MIB::lldpRemTable",
     ]
+
+
+def test_redact_snmp_command_hides_secrets() -> None:
+    command = [
+        "snmpwalk",
+        "-v",
+        "2c",
+        "-c",
+        "public",
+        "-A",
+        "authpass",
+        "-X",
+        "privpass",
+        "10.0.0.1",
+        "LLDP-MIB::lldpRemTable",
+    ]
+
+    redacted = _redact_snmp_command(command)
+
+    assert redacted[redacted.index("-c") + 1] == "******"
+    assert redacted[redacted.index("-A") + 1] == "******"
+    assert redacted[redacted.index("-X") + 1] == "******"
+
+
+def test_classify_snmpwalk_error_auth_failure() -> None:
+    output = "Authentication failure (incorrect password, community or key)"
+
+    assert _classify_snmpwalk_error(output) == "SNMP_AUTH_FAILED"
+
+
+def test_classify_snmpwalk_error_mib_missing() -> None:
+    output = "No Such Object available on this agent at this OID"
+
+    assert _classify_snmpwalk_error(output) == "SNMP_MIB_MISSING"
+
+
+def test_classify_snmpwalk_error_target_unreachable() -> None:
+    output = "Timeout: No Response from 10.0.0.1"
+
+    assert _classify_snmpwalk_error(output) == "SNMP_TARGET_UNREACHABLE"

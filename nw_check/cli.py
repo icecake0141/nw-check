@@ -40,6 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--snmp-timeout", type=int, default=2, help="SNMP timeout seconds")
     parser.add_argument("--snmp-retries", type=int, default=1, help="SNMP retries")
     parser.add_argument(
+        "--snmp-verbose",
+        action="store_true",
+        help="enable verbose SNMP command logging (redacted secrets)",
+    )
+    parser.add_argument(
         "--log-level",
         default="INFO",
         choices=["INFO", "DEBUG", "WARN"],
@@ -77,6 +82,7 @@ def main() -> int:
         timeout=args.snmp_timeout,
         retries=args.snmp_retries,
         alias_map=alias_map,
+        verbose=args.snmp_verbose,
     )
     _LOGGER.info("Collected %s observations", len(observations))
 
