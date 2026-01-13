@@ -44,13 +44,14 @@ def collect_lldp_observations(
     retries: int,
     alias_map: dict[str, str] | None = None,
     snmpwalk_cmd: str = "snmpwalk",
+    verbose: bool = False,
 ) -> tuple[list[LinkObservation], list[str]]:
     """Collect LLDP neighbor data from devices via SNMP walk."""
 
     all_observations: list[LinkObservation] = []
     failed_devices: list[str] = []
     for device in devices:
-        result = _collect_for_device(device, timeout, retries, alias_map, snmpwalk_cmd)
+        result = _collect_for_device(device, timeout, retries, alias_map, snmpwalk_cmd, verbose)
         all_observations.extend(result.observations)
         if result.errors:
             failed_devices.append(device.name)
@@ -63,30 +64,40 @@ def _collect_for_device(
     retries: int,
     alias_map: dict[str, str] | None,
     snmpwalk_cmd: str,
+    verbose: bool,
 ) -> DeviceCollectionResult:
     """Collect LLDP data for a single device using snmpwalk."""
 
     errors: list[str] = []
     if not _validate_snmp_credentials(device):
+        _LOGGER.warning("SNMP credentials invalid for %s", device.name)
         errors.append("SNMP_AUTH_FAILED")
         return DeviceCollectionResult([], errors)
 
     if not _command_exists(snmpwalk_cmd):
-        errors.append("SNMP_OID_UNSUPPORTED")
+        _LOGGER.error("snmpwalk command not found: %s", snmpwalk_cmd)
+        errors.append("SNMP_COMMAND_MISSING")
         return DeviceCollectionResult([], errors)
 
-    loc_port_output = _run_snmpwalk(snmpwalk_cmd, device, timeout, retries, LLDP_LOC_PORT_TABLE)
-    if loc_port_output is None:
-        errors.append("SNMP_TIMEOUT")
+    loc_port_result = _run_snmpwalk(
+        snmpwalk_cmd,
+        device,
+        timeout,
+        retries,
+        LLDP_LOC_PORT_TABLE,
+        verbose,
+    )
+    if loc_port_result.error:
+        errors.append(loc_port_result.error)
         return DeviceCollectionResult([], errors)
 
-    rem_output = _run_snmpwalk(snmpwalk_cmd, device, timeout, retries, LLDP_REM_TABLE)
-    if rem_output is None:
-        errors.append("SNMP_TIMEOUT")
+    rem_result = _run_snmpwalk(snmpwalk_cmd, device, timeout, retries, LLDP_REM_TABLE, verbose)
+    if rem_result.error:
+        errors.append(rem_result.error)
         return DeviceCollectionResult([], errors)
 
-    loc_ports = _parse_loc_port_table(loc_port_output)
-    rem_rows = _parse_rem_table(rem_output)
+    loc_ports = _parse_loc_port_table(loc_port_result.lines)
+    rem_rows = _parse_rem_table(rem_result.lines)
     if not rem_rows:
         errors.append("LLDP_TABLE_EMPTY")
         return DeviceCollectionResult([], errors)
@@ -232,11 +243,17 @@ def _run_snmpwalk(
     timeout: int,
     retries: int,
     oid: str,
-) -> list[str] | None:
-    """Run snmpwalk and return output lines, or None on failure."""
+    verbose: bool,
+) -> "SnmpwalkResult":
+    """Run snmpwalk and return output lines plus error classification."""
 
     command = _build_snmpwalk_command(snmpwalk_cmd, device, timeout, retries, oid)
-    _LOGGER.debug("Running snmpwalk: %s", " ".join(command))
+    redacted_command = _redact_snmp_command(command)
+    log_message = " ".join(redacted_command)
+    if verbose:
+        _LOGGER.info("Running snmpwalk: %s", log_message)
+    else:
+        _LOGGER.debug("Running snmpwalk: %s", log_message)
     try:
         result = subprocess.run(
             command,
@@ -246,13 +263,82 @@ def _run_snmpwalk(
         )
     except OSError as exc:
         _LOGGER.error("Failed to run snmpwalk: %s", exc)
-        return None
+        return SnmpwalkResult([], "SNMP_COMMAND_FAILED")
 
     if result.returncode != 0:
-        _LOGGER.error("snmpwalk failed for %s: %s", device.name, result.stderr)
-        return None
+        combined_output = "\n".join([result.stdout, result.stderr]).strip()
+        error_code = _classify_snmpwalk_error(combined_output)
+        if verbose:
+            _LOGGER.warning(
+                "snmpwalk failed for %s (%s). stderr=%s",
+                device.name,
+                error_code,
+                result.stderr.strip() or "<empty>",
+            )
+        else:
+            _LOGGER.error("snmpwalk failed for %s (%s)", device.name, error_code)
+        return SnmpwalkResult([], error_code)
 
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if verbose:
+        _LOGGER.info("snmpwalk succeeded for %s (%s lines)", device.name, len(lines))
+    return SnmpwalkResult(lines, None)
+
+
+@dataclass(frozen=True)
+class SnmpwalkResult:
+    """Result of running snmpwalk."""
+
+    lines: list[str]
+    error: str | None
+
+
+def _redact_snmp_command(command: list[str]) -> list[str]:
+    """Redact secrets from an snmpwalk command for logging."""
+
+    redacted = command.copy()
+    secret_flags = {"-c", "-A", "-X"}
+    for index, token in enumerate(redacted[:-1]):
+        if token in secret_flags:
+            redacted[index + 1] = "******"
+    return redacted
+
+
+def _classify_snmpwalk_error(output: str) -> str:
+    """Classify snmpwalk error output into a stable error code."""
+
+    lowered = output.lower()
+    auth_markers = (
+        "authentication failure",
+        "authorization error",
+        "unknown user name",
+        "wrong community",
+    )
+    if any(marker in lowered for marker in auth_markers):
+        return "SNMP_AUTH_FAILED"
+
+    mib_markers = (
+        "unknown object identifier",
+        "no such object",
+        "no such instance",
+        "cannot find module",
+        "mib not found",
+    )
+    if any(marker in lowered for marker in mib_markers):
+        return "SNMP_MIB_MISSING"
+
+    reachability_markers = (
+        "timeout",
+        "no response",
+        "no route to host",
+        "network is unreachable",
+        "connection refused",
+        "host is down",
+    )
+    if any(marker in lowered for marker in reachability_markers):
+        return "SNMP_TARGET_UNREACHABLE"
+
+    return "SNMP_UNKNOWN_ERROR"
 
 
 @dataclass(frozen=True)

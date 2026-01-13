@@ -86,9 +86,12 @@
 
 ### Error Classification
 
-- `SNMP_TIMEOUT`
+- `SNMP_TARGET_UNREACHABLE`
 - `SNMP_AUTH_FAILED`
-- `SNMP_OID_UNSUPPORTED`
+- `SNMP_MIB_MISSING`
+- `SNMP_COMMAND_MISSING`
+- `SNMP_COMMAND_FAILED`
+- `SNMP_UNKNOWN_ERROR`
 - `LLDP_TABLE_EMPTY`
 - `LLDP_PARTIAL_ROW`
 
@@ -184,6 +187,7 @@ Columns:
 - `--out-dir`: output directory
 - `--snmp-timeout`: SNMP timeout seconds
 - `--snmp-retries`: SNMP retries
+- `--snmp-verbose`: enable verbose SNMP command logging (secrets redacted)
 - `--log-level`: `INFO` | `DEBUG` | `WARN`
 
 ### Exit Codes
