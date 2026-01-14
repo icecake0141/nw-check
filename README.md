@@ -145,6 +145,7 @@
 ### Command Examples
 
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/`
+- `nw-check-supervisor --devices devices.csv --tobe tobe.csv --out-dir out/ --control-port 8080`
 
 ### Getting Started
 
@@ -189,6 +190,27 @@ Columns:
 - `--snmp-retries`: SNMP retries
 - `--snmp-verbose`: enable verbose SNMP command logging (secrets redacted)
 - `--log-level`: `INFO` | `DEBUG` | `WARN`
+
+### Supervisor + Web Control
+
+Run `nw-check-supervisor` to launch the CLI under a control server that exposes pause, resume,
+and terminate actions from a browser. By default, the control server binds to `127.0.0.1:8080`
+and shuts down automatically once `nw-check` completes. Use `--control-token` when binding to
+`0.0.0.0` (for example in Docker) to require an `X-Control-Token` header (or `?token=` query
+parameter) on requests.
+
+Supervisor-specific arguments:
+
+- `--control-host`: bind address for the control server
+- `--control-port`: port for the control server
+- `--control-token`: optional shared secret for UI/API requests
+- `--shutdown-on-exit` / `--no-shutdown-on-exit`: whether the control server stops when
+  `nw-check` exits
+- `--terminate-timeout`: seconds to wait before force killing the process group
+
+Pause/resume uses POSIX signals (`SIGSTOP`/`SIGCONT`). On Linux (including Docker containers),
+the supervisor sends signals to the entire process group so that child processes like
+`snmpwalk` are also paused/resumed or terminated.
 
 ### Exit Codes
 
