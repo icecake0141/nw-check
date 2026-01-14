@@ -13,6 +13,7 @@ authors = [{ name = "nw-check contributors" }]
 
 [project.scripts]
 nw-check = "nw_check.cli:main"
+nw-check-supervisor = "nw_check.supervisor:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
