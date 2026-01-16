@@ -404,11 +404,6 @@ def main() -> int:
     supervisor.start()
 
     stop_event = threading.Event()
-    context = ControlServerContext(
-        supervisor=supervisor,
-        token=args.control_token,
-        stop_event=stop_event,
-    )
     server = ControlHTTPServer(
         (args.control_host, args.control_port),
         ControlRequestHandler,
