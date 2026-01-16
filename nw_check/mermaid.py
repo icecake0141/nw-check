@@ -48,11 +48,16 @@ def generate_mermaid_diagram(
 
     if len(devices) > max_nodes:
         _LOGGER.warning(
-            "Too many devices (%d) for Mermaid diagram (max: %d). Truncating.",
+            "Too many devices (%d) for Mermaid diagram (max: %d). "
+            "Truncating to first %d devices alphabetically. "
+            "Consider using filtering options to select specific devices.",
             len(devices),
+            max_nodes,
             max_nodes,
         )
         # Take first max_nodes devices alphabetically
+        # Note: This is a simple truncation strategy. For better control,
+        # use --filter-devices or --filter-devices-regex to select specific devices.
         devices = set(sorted(devices)[:max_nodes])
 
     # Build status map from diffs if provided

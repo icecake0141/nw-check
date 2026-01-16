@@ -77,12 +77,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="skip SNMP collection and use saved observations (requires --load-observations)",
+        help="skip SNMP collection and use saved observations "
+        "(must be used with --load-observations)",
     )
     parser.add_argument(
         "--load-observations",
         type=str,
-        help="load observations from JSON file instead of collecting via SNMP",
+        help="load observations from JSON file instead of collecting via SNMP "
+        "(use with --dry-run for offline testing)",
     )
     parser.add_argument(
         "--save-observations",
