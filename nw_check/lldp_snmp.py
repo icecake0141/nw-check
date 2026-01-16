@@ -46,16 +46,26 @@ def collect_lldp_observations(
     alias_map: dict[str, str] | None = None,
     snmpwalk_cmd: str = "snmpwalk",
     verbose: bool = False,
+    show_progress: bool = False,
 ) -> tuple[list[LinkObservation], list[str]]:
     """Collect LLDP neighbor data from devices via SNMP walk."""
 
     all_observations: list[LinkObservation] = []
     failed_devices: list[str] = []
-    for device in devices:
+    devices_list = list(devices)
+    total = len(devices_list)
+
+    for idx, device in enumerate(devices_list, start=1):
+        if show_progress:
+            _LOGGER.info("Progress: [%d/%d] Collecting from %s", idx, total, device.name)
         result = _collect_for_device(device, timeout, retries, alias_map, snmpwalk_cmd, verbose)
         all_observations.extend(result.observations)
         if result.errors:
             failed_devices.append(device.name)
+
+    if show_progress and total > 0:
+        _LOGGER.info("Collection complete: %d/%d devices processed", total, total)
+
     return all_observations, failed_devices
 
 

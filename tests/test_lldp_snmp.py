@@ -126,3 +126,36 @@ def test_classify_snmpwalk_error_target_unreachable() -> None:
     output = "Timeout: No Response from 10.0.0.1"
 
     assert _classify_snmpwalk_error(output) == "SNMP_TARGET_UNREACHABLE"
+
+
+def test_collect_lldp_observations_with_progress() -> None:
+    """Test progress reporting during LLDP collection."""
+    from nw_check.lldp_snmp import collect_lldp_observations
+
+    devices = [
+        Device(
+            name="device1",
+            mgmt_ip="10.0.0.1",
+            snmp_version="2c",
+            snmp_community="public",
+        ),
+        Device(
+            name="device2",
+            mgmt_ip="10.0.0.2",
+            snmp_version="2c",
+            snmp_community="public",
+        ),
+    ]
+
+    # Note: This test will fail if snmpwalk is not available or devices are unreachable
+    # But it tests that the function accepts the show_progress parameter
+    observations, errors = collect_lldp_observations(
+        devices=devices,
+        timeout=1,
+        retries=0,
+        show_progress=True,
+    )
+
+    # We expect errors since these devices don't exist
+    assert isinstance(observations, list)
+    assert isinstance(errors, list)

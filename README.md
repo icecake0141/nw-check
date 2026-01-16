@@ -191,6 +191,7 @@ Columns:
 - `--snmp-verbose`: enable verbose SNMP command logging (secrets redacted)
 - `--log-level`: `INFO` | `DEBUG` | `WARN`
 - `--output-format`: `csv` | `json` | `both` (default: `csv`) - output format for reports
+- `--show-progress`: show progress during LLDP collection
 
 ### Supervisor + Web Control
 

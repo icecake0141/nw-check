@@ -63,6 +63,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["csv", "json", "both"],
         help="output format (default: csv)",
     )
+    parser.add_argument(
+        "--show-progress",
+        action="store_true",
+        help="show progress during LLDP collection",
+    )
     return parser
 
 
@@ -96,6 +101,7 @@ def main() -> int:
         retries=args.snmp_retries,
         alias_map=alias_map,
         verbose=args.snmp_verbose,
+        show_progress=args.show_progress,
     )
     _LOGGER.info("Collected %s observations", len(observations))
 
