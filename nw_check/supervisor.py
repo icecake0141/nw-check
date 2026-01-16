@@ -23,20 +23,10 @@ import sys
 import threading
 import time
 import urllib.parse
-from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Sequence
 
 _LOGGER = logging.getLogger(__name__)
-
-
-@dataclass
-class ControlServerContext:
-    """Context for the control server."""
-
-    supervisor: ProcessSupervisor
-    token: str | None
-    stop_event: threading.Event
 
 
 class ProcessSupervisor:
@@ -60,8 +50,7 @@ class ProcessSupervisor:
             creationflags = 0
             if os.name == "nt":
                 creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-            # pylint: disable=consider-using-with,subprocess-popen-preexec-fn
-            # Process is long-lived and managed by this supervisor; preexec_fn is safe here.
+            # pylint: disable=subprocess-popen-preexec-fn,consider-using-with
             self._process = subprocess.Popen(
                 self._command,
                 text=True,
@@ -174,16 +163,20 @@ class ProcessSupervisor:
 class ControlHTTPServer(HTTPServer):
     """HTTP server carrying supervisor context."""
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         server_address: tuple[str, int],
         request_handler: type[BaseHTTPRequestHandler],
-        context: ControlServerContext,
+        supervisor: ProcessSupervisor,
+        *,
+        token: str | None = None,
+        stop_event: threading.Event | None = None,
     ) -> None:
         super().__init__(server_address, request_handler)
-        self.supervisor = context.supervisor
-        self.token = context.token
-        self.stop_event = context.stop_event
+        self.supervisor = supervisor
+        self.token = token
+        self.stop_event = stop_event if stop_event is not None else threading.Event()
 
 
 class ControlRequestHandler(BaseHTTPRequestHandler):
@@ -192,7 +185,7 @@ class ControlRequestHandler(BaseHTTPRequestHandler):
     server: ControlHTTPServer
 
     def do_GET(self) -> None:  # pylint: disable=invalid-name
-        """Handle GET requests for status and UI."""
+        """Handle GET requests for status and UI page."""
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         if not self._is_authorized(parsed):
@@ -207,7 +200,7 @@ class ControlRequestHandler(BaseHTTPRequestHandler):
         self._send_text(404, "Not Found")
 
     def do_POST(self) -> None:  # pylint: disable=invalid-name
-        """Handle POST requests for control actions."""
+        """Handle POST requests for pause, resume, terminate, and shutdown."""
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         if not self._is_authorized(parsed):
@@ -232,9 +225,8 @@ class ControlRequestHandler(BaseHTTPRequestHandler):
             return
         self._send_text(404, "Not Found")
 
-    def log_message(self, fmt: str, *args: object) -> None:  # pylint: disable=arguments-differ
-        """Log an HTTP request message."""
-        _LOGGER.info("Control server: %s", fmt % args)
+    def log_message(self, format: str, *args: object) -> None:  # pylint: disable=redefined-builtin
+        _LOGGER.info("Control server: %s", format % args)
 
     def _is_authorized(self, parsed: urllib.parse.ParseResult) -> bool:
         token = self.server.token
@@ -402,15 +394,12 @@ def main() -> int:
     supervisor.start()
 
     stop_event = threading.Event()
-    context = ControlServerContext(
-        supervisor=supervisor,
-        token=args.control_token,
-        stop_event=stop_event,
-    )
     server = ControlHTTPServer(
         (args.control_host, args.control_port),
         ControlRequestHandler,
-        context,
+        supervisor,
+        token=args.control_token,
+        stop_event=stop_event,
     )
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
