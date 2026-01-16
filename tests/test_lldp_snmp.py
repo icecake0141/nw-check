@@ -163,7 +163,6 @@ def test_collect_lldp_observations_with_progress() -> None:
 
 def test_save_and_load_observations(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """Test saving and loading observations for dry-run mode."""
-    from pathlib import Path
 
     from nw_check.lldp_snmp import load_observations, save_observations
     from nw_check.models import LinkObservation
