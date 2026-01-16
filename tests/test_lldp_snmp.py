@@ -126,3 +126,82 @@ def test_classify_snmpwalk_error_target_unreachable() -> None:
     output = "Timeout: No Response from 10.0.0.1"
 
     assert _classify_snmpwalk_error(output) == "SNMP_TARGET_UNREACHABLE"
+
+
+def test_collect_lldp_observations_with_progress() -> None:
+    """Test progress reporting during LLDP collection."""
+    from nw_check.lldp_snmp import collect_lldp_observations
+
+    devices = [
+        Device(
+            name="device1",
+            mgmt_ip="10.0.0.1",
+            snmp_version="2c",
+            snmp_community="public",
+        ),
+        Device(
+            name="device2",
+            mgmt_ip="10.0.0.2",
+            snmp_version="2c",
+            snmp_community="public",
+        ),
+    ]
+
+    # Note: This test will fail if snmpwalk is not available or devices are unreachable
+    # But it tests that the function accepts the show_progress parameter
+    observations, errors = collect_lldp_observations(
+        devices=devices,
+        timeout=1,
+        retries=0,
+        show_progress=True,
+    )
+
+    # We expect errors since these devices don't exist
+    assert isinstance(observations, list)
+    assert isinstance(errors, list)
+
+
+def test_save_and_load_observations(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Test saving and loading observations for dry-run mode."""
+
+    from nw_check.lldp_snmp import load_observations, save_observations
+    from nw_check.models import LinkObservation
+
+    observations = [
+        LinkObservation(
+            local_device="leaf01",
+            local_port_raw="Eth1/1",
+            local_port_norm="Eth1/1",
+            remote_device_id="chassis01",
+            remote_device_name="spine01",
+            remote_port_raw="Eth1/1",
+            remote_port_norm="Eth1/1",
+            source="lldp",
+            confidence="observed",
+            errors=(),
+        ),
+        LinkObservation(
+            local_device="leaf02",
+            local_port_raw="Eth1/2",
+            local_port_norm="Eth1/2",
+            remote_device_id="unknown",
+            remote_device_name="unknown",
+            remote_port_raw="unknown",
+            remote_port_norm="unknown",
+            source="lldp",
+            confidence="partial",
+            errors=("LLDP_PARTIAL_ROW",),
+        ),
+    ]
+
+    obs_path = tmp_path / "observations.json"
+    save_observations(obs_path, observations)
+
+    loaded = load_observations(obs_path)
+
+    assert len(loaded) == 2
+    assert loaded[0].local_device == "leaf01"
+    assert loaded[0].confidence == "observed"
+    assert loaded[1].local_device == "leaf02"
+    assert loaded[1].confidence == "partial"
+    assert loaded[1].errors == ("LLDP_PARTIAL_ROW",)

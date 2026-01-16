@@ -18,14 +18,27 @@ import logging
 from pathlib import Path
 
 from nw_check.diff import diff_links
+from nw_check.filters import filter_asis_links, filter_diffs
 from nw_check.inventory import (
     build_device_alias_map,
     load_device_inventory,
     load_link_intents,
 )
 from nw_check.link_infer import deduplicate_links
-from nw_check.lldp_snmp import collect_lldp_observations
-from nw_check.output import write_asis_links, write_diff_links, write_summary
+from nw_check.lldp_snmp import (
+    collect_lldp_observations,
+    load_observations,
+    save_observations,
+)
+from nw_check.mermaid import write_mermaid_diagram
+from nw_check.output import (
+    write_asis_links,
+    write_asis_links_json,
+    write_diff_links,
+    write_diff_links_json,
+    write_summary,
+    write_summary_json,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,6 +63,60 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["INFO", "DEBUG", "WARN"],
         help="log level",
     )
+    parser.add_argument(
+        "--output-format",
+        default="csv",
+        choices=["csv", "json", "both"],
+        help="output format (default: csv)",
+    )
+    parser.add_argument(
+        "--show-progress",
+        action="store_true",
+        help="show progress during LLDP collection",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="skip SNMP collection and use saved observations "
+        "(must be used with --load-observations)",
+    )
+    parser.add_argument(
+        "--load-observations",
+        type=str,
+        help="load observations from JSON file instead of collecting via SNMP "
+        "(use with --dry-run for offline testing)",
+    )
+    parser.add_argument(
+        "--save-observations",
+        type=str,
+        help="save collected observations to JSON file for later dry-run use",
+    )
+    parser.add_argument(
+        "--generate-mermaid",
+        action="store_true",
+        help="generate Mermaid diagram of network topology",
+    )
+    parser.add_argument(
+        "--mermaid-max-nodes",
+        type=int,
+        default=50,
+        help="maximum number of nodes in Mermaid diagram (default: 50)",
+    )
+    parser.add_argument(
+        "--filter-devices",
+        type=str,
+        help="comma-separated list of device names to include in output",
+    )
+    parser.add_argument(
+        "--filter-devices-regex",
+        type=str,
+        help="regular expression pattern to filter devices",
+    )
+    parser.add_argument(
+        "--filter-status",
+        type=str,
+        help="comma-separated list of diff statuses to include (e.g., PORT_MISMATCH,MISSING_ASIS)",
+    )
     return parser
 
 
@@ -61,6 +128,7 @@ def configure_logging(level: str) -> None:
 
 def main() -> int:
     """Run nw-check."""
+    # pylint: disable=too-many-branches
 
     parser = build_parser()
     args = parser.parse_args()
@@ -77,21 +145,67 @@ def main() -> int:
         return 3
     alias_map = build_device_alias_map(devices)
 
-    observations, errors = collect_lldp_observations(
-        devices=devices,
-        timeout=args.snmp_timeout,
-        retries=args.snmp_retries,
-        alias_map=alias_map,
-        verbose=args.snmp_verbose,
-    )
-    _LOGGER.info("Collected %s observations", len(observations))
+    # Handle dry-run and observation loading/saving
+    errors: list[str] = []
+    if args.dry_run or args.load_observations:
+        if not args.load_observations:
+            _LOGGER.error("--dry-run requires --load-observations to be specified")
+            return 3
+        _LOGGER.info("Loading observations from %s", args.load_observations)
+        observations = load_observations(args.load_observations)
+        _LOGGER.info("Loaded %s observations", len(observations))
+    else:
+        observations, errors = collect_lldp_observations(
+            devices=devices,
+            timeout=args.snmp_timeout,
+            retries=args.snmp_retries,
+            alias_map=alias_map,
+            verbose=args.snmp_verbose,
+            show_progress=args.show_progress,
+        )
+        _LOGGER.info("Collected %s observations", len(observations))
+
+        if args.save_observations:
+            save_observations(args.save_observations, observations)
+            _LOGGER.info("Saved observations to %s", args.save_observations)
 
     asis_links = deduplicate_links(observations)
     diffs = diff_links(tobe_links, asis_links)
 
-    write_asis_links(out_dir / "asis_links.csv", asis_links)
-    write_diff_links(out_dir / "diff_links.csv", diffs)
-    write_summary(out_dir / "summary.txt", diffs, errors, asis_links)
+    # Apply filters if specified
+    device_filter = None
+    if args.filter_devices:
+        device_filter = [d.strip() for d in args.filter_devices.split(",")]
+
+    status_filter = None
+    if args.filter_status:
+        status_filter = [s.strip() for s in args.filter_status.split(",")]
+
+    if device_filter or args.filter_devices_regex:
+        asis_links = filter_asis_links(asis_links, device_filter, args.filter_devices_regex)
+        diffs = filter_diffs(diffs, device_filter, args.filter_devices_regex, None)
+
+    if status_filter:
+        diffs = filter_diffs(diffs, None, None, status_filter)
+
+    # Write outputs based on format
+    if args.output_format in ("csv", "both"):
+        write_asis_links(out_dir / "asis_links.csv", asis_links)
+        write_diff_links(out_dir / "diff_links.csv", diffs)
+        write_summary(out_dir / "summary.txt", diffs, errors, asis_links)
+
+    if args.output_format in ("json", "both"):
+        write_asis_links_json(out_dir / "asis_links.json", asis_links)
+        write_diff_links_json(out_dir / "diff_links.json", diffs)
+        write_summary_json(out_dir / "summary.json", diffs, errors, asis_links)
+
+    if args.generate_mermaid:
+        write_mermaid_diagram(
+            out_dir / "topology.mmd",
+            asis_links,
+            diffs,
+            max_nodes=args.mermaid_max_nodes,
+        )
 
     if errors:
         return 2

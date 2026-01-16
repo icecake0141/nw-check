@@ -145,6 +145,13 @@
 ### Command Examples
 
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --output-format json`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --show-progress`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --generate-mermaid`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-devices leaf01,leaf02`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-status PORT_MISMATCH,MISSING_ASIS`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --save-observations obs.json`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --dry-run --load-observations obs.json`
 - `nw-check-supervisor --devices devices.csv --tobe tobe.csv --out-dir out/ --control-port 8080`
 
 ### Getting Started
@@ -190,6 +197,78 @@ Columns:
 - `--snmp-retries`: SNMP retries
 - `--snmp-verbose`: enable verbose SNMP command logging (secrets redacted)
 - `--log-level`: `INFO` | `DEBUG` | `WARN`
+- `--output-format`: `csv` | `json` | `both` (default: `csv`) - output format for reports
+- `--show-progress`: show progress during LLDP collection
+- `--dry-run`: skip SNMP collection and use saved observations (requires `--load-observations`)
+- `--load-observations`: load observations from JSON file instead of collecting via SNMP
+- `--save-observations`: save collected observations to JSON file for later dry-run use
+- `--generate-mermaid`: generate Mermaid diagram of network topology
+- `--mermaid-max-nodes`: maximum number of nodes in Mermaid diagram (default: 50)
+- `--filter-devices`: comma-separated list of device names to include in output
+- `--filter-devices-regex`: regular expression pattern to filter devices
+- `--filter-status`: comma-separated list of diff statuses to include (e.g., `PORT_MISMATCH,MISSING_ASIS`)
+
+### Dry-Run Mode
+
+Dry-run mode allows you to test the diff logic and output formatting without making actual SNMP
+queries to network devices. This is useful for:
+
+- Testing changes to the To-Be wiring definitions
+- Validating the tool's behavior in CI/CD pipelines
+- Working offline or in environments without network access
+- Developing and debugging new features
+
+**Workflow:**
+
+1. First, collect and save observations from actual devices:
+   ```bash
+   nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --save-observations observations.json
+   ```
+
+2. Later, use the saved observations for dry-run testing:
+   ```bash
+   nw-check --devices devices.csv --tobe tobe-updated.csv --out-dir out/ --dry-run --load-observations observations.json
+   ```
+
+The `--dry-run` flag requires `--load-observations` to be specified. When using dry-run mode,
+no SNMP queries are made, and the tool uses the previously saved observation data.
+
+### Filtering Output
+
+For large-scale networks, you can filter the output to focus on specific devices or issues:
+
+**Device Filtering:**
+- Use `--filter-devices` to specify exact device names (comma-separated):
+  ```bash
+  nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-devices leaf01,leaf02,spine01
+  ```
+
+- Use `--filter-devices-regex` to filter by pattern:
+  ```bash
+  nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-devices-regex "^leaf"
+  ```
+
+**Status Filtering:**
+- Use `--filter-status` to show only specific diff statuses:
+  ```bash
+  nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-status PORT_MISMATCH,MISSING_ASIS
+  ```
+
+  Available statuses: `EXACT_MATCH`, `PORT_MISMATCH`, `DEVICE_MISMATCH`, `MISSING_ASIS`, 
+  `PARTIAL_OBSERVED`, `UNKNOWN`
+
+**Combining Filters:**
+You can combine multiple filters for focused analysis:
+```bash
+nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ \
+  --filter-devices-regex "^leaf" \
+  --filter-status PORT_MISMATCH,MISSING_ASIS
+```
+
+This is particularly useful for:
+- Troubleshooting specific racks or locations
+- Reviewing only mismatches and failures
+- Generating focused reports for specific teams
 
 ### Supervisor + Web Control
 
@@ -249,9 +328,108 @@ leaf01,Eth1/2,leaf02,Eth1/2,MISSING_ASIS,no lldp observation
 - `missing_ports`: count of unknown remote ports
 - `mismatch_links`: count of non-EXACT_MATCH
 
+### JSON Output Format
+
+When using `--output-format json` or `--output-format both`, the tool generates JSON files
+alongside or instead of CSV files. JSON output is useful for API integration, custom reporting,
+and programmatic processing.
+
+#### As-Is Links (JSON)
+
+Example (`asis_links.json`):
+```json
+[
+  {
+    "local_device": "leaf01",
+    "local_port": "Eth1/1",
+    "remote_device": "spine01",
+    "remote_port": "Eth1/1",
+    "confidence": "observed",
+    "evidence": ["lldp"]
+  },
+  {
+    "local_device": "leaf02",
+    "local_port": "Eth1/1",
+    "remote_device": "unknown",
+    "remote_port": "unknown",
+    "confidence": "partial",
+    "evidence": ["lldp:missing_remote"]
+  }
+]
+```
+
+#### To-Be vs As-Is Diff (JSON)
+
+Example (`diff_links.json`):
+```json
+[
+  {
+    "device_a": "leaf01",
+    "port_a": "Eth1/1",
+    "device_b": "spine01",
+    "port_b": "Eth1/1",
+    "status": "EXACT_MATCH",
+    "reason": "normalized ports matched"
+  },
+  {
+    "device_a": "leaf02",
+    "port_a": "Eth1/1",
+    "device_b": "spine01",
+    "port_b": "Eth1/2",
+    "status": "PORT_MISMATCH",
+    "reason": "remote port differs: Eth1/3"
+  }
+]
+```
+
+#### Summary (JSON)
+
+Example (`summary.json`):
+```json
+{
+  "lldp_failed_devices": ["leaf01", "leaf02"],
+  "missing_ports": 1,
+  "mismatch_links": 2
+}
+```
+
 Sorting:
 - Sort by `local_device`, `local_port`, then `remote_device` for As-Is.
 - Sort by `device_a`, `port_a`, `device_b`, `port_b` for To-Be diff.
+
+### Mermaid Diagram Output
+
+When using `--generate-mermaid`, the tool generates a Mermaid diagram file (`topology.mmd`) 
+that visualizes the network topology based on As-Is links. This diagram can be rendered 
+in Markdown documentation, web pages, or any tool that supports Mermaid syntax.
+
+**Features:**
+- Displays devices as nodes and links as edges
+- Shows port labels on connections
+- Color-codes devices based on diff status (when diffs are available):
+  - Green (`#ccffcc`): All links match To-Be intent
+  - Red (`#ffcccc`): One or more links have mismatches
+- Filters out "unknown" devices
+- Limits diagram size to `--mermaid-max-nodes` devices (default: 50)
+
+Example (`topology.mmd`):
+```mermaid
+graph LR
+    leaf01["leaf01"] -->|Eth1/1 -- Eth1/1| spine01["spine01"]
+    leaf01["leaf01"] -->|Eth1/2 -- Eth1/2| spine01["spine01"]
+    leaf02["leaf02"] -->|Eth1/1 -- Eth1/2| spine01["spine01"]
+
+    %% Styling
+    style leaf01 fill:#ccffcc
+    style leaf02 fill:#ffcccc
+    style spine01 fill:#ccffcc
+```
+
+**Usage Tips:**
+- Use `--mermaid-max-nodes` to limit the diagram size for large networks
+- The diagram is marked as auxiliary and should not be considered authoritative
+- Best used for documentation and high-level topology visualization
+- Can be embedded in GitHub README files or rendered with Mermaid viewers
 
 ## Test Plan
 

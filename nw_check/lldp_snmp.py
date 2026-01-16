@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import shutil
@@ -46,16 +47,26 @@ def collect_lldp_observations(
     alias_map: dict[str, str] | None = None,
     snmpwalk_cmd: str = "snmpwalk",
     verbose: bool = False,
+    show_progress: bool = False,
 ) -> tuple[list[LinkObservation], list[str]]:
     """Collect LLDP neighbor data from devices via SNMP walk."""
 
     all_observations: list[LinkObservation] = []
     failed_devices: list[str] = []
-    for device in devices:
+    devices_list = list(devices)
+    total = len(devices_list)
+
+    for idx, device in enumerate(devices_list, start=1):
+        if show_progress:
+            _LOGGER.info("Progress: [%d/%d] Collecting from %s", idx, total, device.name)
         result = _collect_for_device(device, timeout, retries, alias_map, snmpwalk_cmd, verbose)
         all_observations.extend(result.observations)
         if result.errors:
             failed_devices.append(device.name)
+
+    if show_progress and total > 0:
+        _LOGGER.info("Collection complete: %d/%d devices processed", total, total)
+
     return all_observations, failed_devices
 
 
@@ -410,3 +421,52 @@ def _strip_snmp_value(raw_value: str) -> str:
     if value.startswith("0x"):
         return value
     return value
+
+
+def save_observations(path: str | Path, observations: list[LinkObservation]) -> None:
+    """Save link observations to a JSON file for dry-run mode."""
+
+    data = [
+        {
+            "local_device": obs.local_device,
+            "local_port_raw": obs.local_port_raw,
+            "local_port_norm": obs.local_port_norm,
+            "remote_device_id": obs.remote_device_id,
+            "remote_device_name": obs.remote_device_name,
+            "remote_port_raw": obs.remote_port_raw,
+            "remote_port_norm": obs.remote_port_norm,
+            "source": obs.source,
+            "confidence": obs.confidence,
+            "errors": list(obs.errors),
+        }
+        for obs in observations
+    ]
+
+    with Path(path).open("w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+
+
+def load_observations(path: str | Path) -> list[LinkObservation]:
+    """Load link observations from a JSON file for dry-run mode."""
+
+    with Path(path).open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    observations = [
+        LinkObservation(
+            local_device=item["local_device"],
+            local_port_raw=item["local_port_raw"],
+            local_port_norm=item["local_port_norm"],
+            remote_device_id=item["remote_device_id"],
+            remote_device_name=item["remote_device_name"],
+            remote_port_raw=item["remote_port_raw"],
+            remote_port_norm=item["remote_port_norm"],
+            source=item["source"],
+            confidence=item["confidence"],
+            errors=tuple(item.get("errors", [])),
+        )
+        for item in data
+    ]
+
+    return observations
