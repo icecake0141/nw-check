@@ -24,7 +24,11 @@ from nw_check.inventory import (
     load_link_intents,
 )
 from nw_check.link_infer import deduplicate_links
-from nw_check.lldp_snmp import collect_lldp_observations
+from nw_check.lldp_snmp import (
+    collect_lldp_observations,
+    load_observations,
+    save_observations,
+)
 from nw_check.output import (
     write_asis_links,
     write_asis_links_json,
@@ -68,6 +72,21 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="show progress during LLDP collection",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="skip SNMP collection and use saved observations (requires --load-observations)",
+    )
+    parser.add_argument(
+        "--load-observations",
+        type=str,
+        help="load observations from JSON file instead of collecting via SNMP",
+    )
+    parser.add_argument(
+        "--save-observations",
+        type=str,
+        help="save collected observations to JSON file for later dry-run use",
+    )
     return parser
 
 
@@ -95,15 +114,29 @@ def main() -> int:
         return 3
     alias_map = build_device_alias_map(devices)
 
-    observations, errors = collect_lldp_observations(
-        devices=devices,
-        timeout=args.snmp_timeout,
-        retries=args.snmp_retries,
-        alias_map=alias_map,
-        verbose=args.snmp_verbose,
-        show_progress=args.show_progress,
-    )
-    _LOGGER.info("Collected %s observations", len(observations))
+    # Handle dry-run and observation loading/saving
+    errors: list[str] = []
+    if args.dry_run or args.load_observations:
+        if not args.load_observations:
+            _LOGGER.error("--dry-run requires --load-observations to be specified")
+            return 3
+        _LOGGER.info("Loading observations from %s", args.load_observations)
+        observations = load_observations(args.load_observations)
+        _LOGGER.info("Loaded %s observations", len(observations))
+    else:
+        observations, errors = collect_lldp_observations(
+            devices=devices,
+            timeout=args.snmp_timeout,
+            retries=args.snmp_retries,
+            alias_map=alias_map,
+            verbose=args.snmp_verbose,
+            show_progress=args.show_progress,
+        )
+        _LOGGER.info("Collected %s observations", len(observations))
+
+        if args.save_observations:
+            save_observations(args.save_observations, observations)
+            _LOGGER.info("Saved observations to %s", args.save_observations)
 
     asis_links = deduplicate_links(observations)
     diffs = diff_links(tobe_links, asis_links)

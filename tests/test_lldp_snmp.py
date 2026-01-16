@@ -159,3 +159,50 @@ def test_collect_lldp_observations_with_progress() -> None:
     # We expect errors since these devices don't exist
     assert isinstance(observations, list)
     assert isinstance(errors, list)
+
+
+def test_save_and_load_observations(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Test saving and loading observations for dry-run mode."""
+    from pathlib import Path
+
+    from nw_check.lldp_snmp import load_observations, save_observations
+    from nw_check.models import LinkObservation
+
+    observations = [
+        LinkObservation(
+            local_device="leaf01",
+            local_port_raw="Eth1/1",
+            local_port_norm="Eth1/1",
+            remote_device_id="chassis01",
+            remote_device_name="spine01",
+            remote_port_raw="Eth1/1",
+            remote_port_norm="Eth1/1",
+            source="lldp",
+            confidence="observed",
+            errors=(),
+        ),
+        LinkObservation(
+            local_device="leaf02",
+            local_port_raw="Eth1/2",
+            local_port_norm="Eth1/2",
+            remote_device_id="unknown",
+            remote_device_name="unknown",
+            remote_port_raw="unknown",
+            remote_port_norm="unknown",
+            source="lldp",
+            confidence="partial",
+            errors=("LLDP_PARTIAL_ROW",),
+        ),
+    ]
+
+    obs_path = tmp_path / "observations.json"
+    save_observations(obs_path, observations)
+
+    loaded = load_observations(obs_path)
+
+    assert len(loaded) == 2
+    assert loaded[0].local_device == "leaf01"
+    assert loaded[0].confidence == "observed"
+    assert loaded[1].local_device == "leaf02"
+    assert loaded[1].confidence == "partial"
+    assert loaded[1].errors == ("LLDP_PARTIAL_ROW",)

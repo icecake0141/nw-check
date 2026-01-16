@@ -145,6 +145,10 @@
 ### Command Examples
 
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --output-format json`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --show-progress`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --save-observations obs.json`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --dry-run --load-observations obs.json`
 - `nw-check-supervisor --devices devices.csv --tobe tobe.csv --out-dir out/ --control-port 8080`
 
 ### Getting Started
@@ -192,6 +196,34 @@ Columns:
 - `--log-level`: `INFO` | `DEBUG` | `WARN`
 - `--output-format`: `csv` | `json` | `both` (default: `csv`) - output format for reports
 - `--show-progress`: show progress during LLDP collection
+- `--dry-run`: skip SNMP collection and use saved observations (requires `--load-observations`)
+- `--load-observations`: load observations from JSON file instead of collecting via SNMP
+- `--save-observations`: save collected observations to JSON file for later dry-run use
+
+### Dry-Run Mode
+
+Dry-run mode allows you to test the diff logic and output formatting without making actual SNMP
+queries to network devices. This is useful for:
+
+- Testing changes to the To-Be wiring definitions
+- Validating the tool's behavior in CI/CD pipelines
+- Working offline or in environments without network access
+- Developing and debugging new features
+
+**Workflow:**
+
+1. First, collect and save observations from actual devices:
+   ```bash
+   nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --save-observations observations.json
+   ```
+
+2. Later, use the saved observations for dry-run testing:
+   ```bash
+   nw-check --devices devices.csv --tobe tobe-updated.csv --out-dir out/ --dry-run --load-observations observations.json
+   ```
+
+The `--dry-run` flag requires `--load-observations` to be specified. When using dry-run mode,
+no SNMP queries are made, and the tool uses the previously saved observation data.
 
 ### Supervisor + Web Control
 
