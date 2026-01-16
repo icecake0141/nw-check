@@ -147,6 +147,7 @@
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/`
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --output-format json`
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --show-progress`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --generate-mermaid`
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --save-observations obs.json`
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --dry-run --load-observations obs.json`
 - `nw-check-supervisor --devices devices.csv --tobe tobe.csv --out-dir out/ --control-port 8080`
@@ -199,6 +200,8 @@ Columns:
 - `--dry-run`: skip SNMP collection and use saved observations (requires `--load-observations`)
 - `--load-observations`: load observations from JSON file instead of collecting via SNMP
 - `--save-observations`: save collected observations to JSON file for later dry-run use
+- `--generate-mermaid`: generate Mermaid diagram of network topology
+- `--mermaid-max-nodes`: maximum number of nodes in Mermaid diagram (default: 50)
 
 ### Dry-Run Mode
 
@@ -351,6 +354,40 @@ Example (`summary.json`):
 Sorting:
 - Sort by `local_device`, `local_port`, then `remote_device` for As-Is.
 - Sort by `device_a`, `port_a`, `device_b`, `port_b` for To-Be diff.
+
+### Mermaid Diagram Output
+
+When using `--generate-mermaid`, the tool generates a Mermaid diagram file (`topology.mmd`) 
+that visualizes the network topology based on As-Is links. This diagram can be rendered 
+in Markdown documentation, web pages, or any tool that supports Mermaid syntax.
+
+**Features:**
+- Displays devices as nodes and links as edges
+- Shows port labels on connections
+- Color-codes devices based on diff status (when diffs are available):
+  - Green (`#ccffcc`): All links match To-Be intent
+  - Red (`#ffcccc`): One or more links have mismatches
+- Filters out "unknown" devices
+- Limits diagram size to `--mermaid-max-nodes` devices (default: 50)
+
+Example (`topology.mmd`):
+```mermaid
+graph LR
+    leaf01["leaf01"] -->|Eth1/1 -- Eth1/1| spine01["spine01"]
+    leaf01["leaf01"] -->|Eth1/2 -- Eth1/2| spine01["spine01"]
+    leaf02["leaf02"] -->|Eth1/1 -- Eth1/2| spine01["spine01"]
+
+    %% Styling
+    style leaf01 fill:#ccffcc
+    style leaf02 fill:#ffcccc
+    style spine01 fill:#ccffcc
+```
+
+**Usage Tips:**
+- Use `--mermaid-max-nodes` to limit the diagram size for large networks
+- The diagram is marked as auxiliary and should not be considered authoritative
+- Best used for documentation and high-level topology visualization
+- Can be embedded in GitHub README files or rendered with Mermaid viewers
 
 ## Test Plan
 

@@ -29,6 +29,7 @@ from nw_check.lldp_snmp import (
     load_observations,
     save_observations,
 )
+from nw_check.mermaid import write_mermaid_diagram
 from nw_check.output import (
     write_asis_links,
     write_asis_links_json,
@@ -86,6 +87,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--save-observations",
         type=str,
         help="save collected observations to JSON file for later dry-run use",
+    )
+    parser.add_argument(
+        "--generate-mermaid",
+        action="store_true",
+        help="generate Mermaid diagram of network topology",
+    )
+    parser.add_argument(
+        "--mermaid-max-nodes",
+        type=int,
+        default=50,
+        help="maximum number of nodes in Mermaid diagram (default: 50)",
     )
     return parser
 
@@ -151,6 +163,14 @@ def main() -> int:
         write_asis_links_json(out_dir / "asis_links.json", asis_links)
         write_diff_links_json(out_dir / "diff_links.json", diffs)
         write_summary_json(out_dir / "summary.json", diffs, errors, asis_links)
+
+    if args.generate_mermaid:
+        write_mermaid_diagram(
+            out_dir / "topology.mmd",
+            asis_links,
+            diffs,
+            max_nodes=args.mermaid_max_nodes,
+        )
 
     if errors:
         return 2
