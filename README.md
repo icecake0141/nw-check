@@ -190,6 +190,7 @@ Columns:
 - `--snmp-retries`: SNMP retries
 - `--snmp-verbose`: enable verbose SNMP command logging (secrets redacted)
 - `--log-level`: `INFO` | `DEBUG` | `WARN`
+- `--output-format`: `csv` | `json` | `both` (default: `csv`) - output format for reports
 
 ### Supervisor + Web Control
 
@@ -248,6 +249,71 @@ leaf01,Eth1/2,leaf02,Eth1/2,MISSING_ASIS,no lldp observation
 - `lldp_failed_devices`: list of device names
 - `missing_ports`: count of unknown remote ports
 - `mismatch_links`: count of non-EXACT_MATCH
+
+### JSON Output Format
+
+When using `--output-format json` or `--output-format both`, the tool generates JSON files
+alongside or instead of CSV files. JSON output is useful for API integration, custom reporting,
+and programmatic processing.
+
+#### As-Is Links (JSON)
+
+Example (`asis_links.json`):
+```json
+[
+  {
+    "local_device": "leaf01",
+    "local_port": "Eth1/1",
+    "remote_device": "spine01",
+    "remote_port": "Eth1/1",
+    "confidence": "observed",
+    "evidence": ["lldp"]
+  },
+  {
+    "local_device": "leaf02",
+    "local_port": "Eth1/1",
+    "remote_device": "unknown",
+    "remote_port": "unknown",
+    "confidence": "partial",
+    "evidence": ["lldp:missing_remote"]
+  }
+]
+```
+
+#### To-Be vs As-Is Diff (JSON)
+
+Example (`diff_links.json`):
+```json
+[
+  {
+    "device_a": "leaf01",
+    "port_a": "Eth1/1",
+    "device_b": "spine01",
+    "port_b": "Eth1/1",
+    "status": "EXACT_MATCH",
+    "reason": "normalized ports matched"
+  },
+  {
+    "device_a": "leaf02",
+    "port_a": "Eth1/1",
+    "device_b": "spine01",
+    "port_b": "Eth1/2",
+    "status": "PORT_MISMATCH",
+    "reason": "remote port differs: Eth1/3"
+  }
+]
+```
+
+#### Summary (JSON)
+
+Example (`summary.json`):
+```json
+{
+  "lldp_failed_devices": ["leaf01", "leaf02"],
+  "missing_ports": 1,
+  "mismatch_links": 2
+}
+```
 
 Sorting:
 - Sort by `local_device`, `local_port`, then `remote_device` for As-Is.

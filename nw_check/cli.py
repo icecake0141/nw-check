@@ -25,7 +25,14 @@ from nw_check.inventory import (
 )
 from nw_check.link_infer import deduplicate_links
 from nw_check.lldp_snmp import collect_lldp_observations
-from nw_check.output import write_asis_links, write_diff_links, write_summary
+from nw_check.output import (
+    write_asis_links,
+    write_asis_links_json,
+    write_diff_links,
+    write_diff_links_json,
+    write_summary,
+    write_summary_json,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +56,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="INFO",
         choices=["INFO", "DEBUG", "WARN"],
         help="log level",
+    )
+    parser.add_argument(
+        "--output-format",
+        default="csv",
+        choices=["csv", "json", "both"],
+        help="output format (default: csv)",
     )
     return parser
 
@@ -89,9 +102,16 @@ def main() -> int:
     asis_links = deduplicate_links(observations)
     diffs = diff_links(tobe_links, asis_links)
 
-    write_asis_links(out_dir / "asis_links.csv", asis_links)
-    write_diff_links(out_dir / "diff_links.csv", diffs)
-    write_summary(out_dir / "summary.txt", diffs, errors, asis_links)
+    # Write outputs based on format
+    if args.output_format in ("csv", "both"):
+        write_asis_links(out_dir / "asis_links.csv", asis_links)
+        write_diff_links(out_dir / "diff_links.csv", diffs)
+        write_summary(out_dir / "summary.txt", diffs, errors, asis_links)
+
+    if args.output_format in ("json", "both"):
+        write_asis_links_json(out_dir / "asis_links.json", asis_links)
+        write_diff_links_json(out_dir / "diff_links.json", diffs)
+        write_summary_json(out_dir / "summary.json", diffs, errors, asis_links)
 
     if errors:
         return 2
