@@ -18,6 +18,7 @@ import logging
 from pathlib import Path
 
 from nw_check.diff import diff_links
+from nw_check.filters import filter_asis_links, filter_diffs
 from nw_check.inventory import (
     build_device_alias_map,
     load_device_inventory,
@@ -99,6 +100,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=50,
         help="maximum number of nodes in Mermaid diagram (default: 50)",
     )
+    parser.add_argument(
+        "--filter-devices",
+        type=str,
+        help="comma-separated list of device names to include in output",
+    )
+    parser.add_argument(
+        "--filter-devices-regex",
+        type=str,
+        help="regular expression pattern to filter devices",
+    )
+    parser.add_argument(
+        "--filter-status",
+        type=str,
+        help="comma-separated list of diff statuses to include (e.g., PORT_MISMATCH,MISSING_ASIS)",
+    )
     return parser
 
 
@@ -110,6 +126,7 @@ def configure_logging(level: str) -> None:
 
 def main() -> int:
     """Run nw-check."""
+    # pylint: disable=too-many-branches
 
     parser = build_parser()
     args = parser.parse_args()
@@ -152,6 +169,22 @@ def main() -> int:
 
     asis_links = deduplicate_links(observations)
     diffs = diff_links(tobe_links, asis_links)
+
+    # Apply filters if specified
+    device_filter = None
+    if args.filter_devices:
+        device_filter = [d.strip() for d in args.filter_devices.split(",")]
+
+    status_filter = None
+    if args.filter_status:
+        status_filter = [s.strip() for s in args.filter_status.split(",")]
+
+    if device_filter or args.filter_devices_regex:
+        asis_links = filter_asis_links(asis_links, device_filter, args.filter_devices_regex)
+        diffs = filter_diffs(diffs, device_filter, args.filter_devices_regex, None)
+
+    if status_filter:
+        diffs = filter_diffs(diffs, None, None, status_filter)
 
     # Write outputs based on format
     if args.output_format in ("csv", "both"):

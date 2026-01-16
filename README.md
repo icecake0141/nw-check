@@ -148,6 +148,8 @@
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --output-format json`
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --show-progress`
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --generate-mermaid`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-devices leaf01,leaf02`
+- `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-status PORT_MISMATCH,MISSING_ASIS`
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --save-observations obs.json`
 - `nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --dry-run --load-observations obs.json`
 - `nw-check-supervisor --devices devices.csv --tobe tobe.csv --out-dir out/ --control-port 8080`
@@ -202,6 +204,9 @@ Columns:
 - `--save-observations`: save collected observations to JSON file for later dry-run use
 - `--generate-mermaid`: generate Mermaid diagram of network topology
 - `--mermaid-max-nodes`: maximum number of nodes in Mermaid diagram (default: 50)
+- `--filter-devices`: comma-separated list of device names to include in output
+- `--filter-devices-regex`: regular expression pattern to filter devices
+- `--filter-status`: comma-separated list of diff statuses to include (e.g., `PORT_MISMATCH,MISSING_ASIS`)
 
 ### Dry-Run Mode
 
@@ -227,6 +232,43 @@ queries to network devices. This is useful for:
 
 The `--dry-run` flag requires `--load-observations` to be specified. When using dry-run mode,
 no SNMP queries are made, and the tool uses the previously saved observation data.
+
+### Filtering Output
+
+For large-scale networks, you can filter the output to focus on specific devices or issues:
+
+**Device Filtering:**
+- Use `--filter-devices` to specify exact device names (comma-separated):
+  ```bash
+  nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-devices leaf01,leaf02,spine01
+  ```
+
+- Use `--filter-devices-regex` to filter by pattern:
+  ```bash
+  nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-devices-regex "^leaf"
+  ```
+
+**Status Filtering:**
+- Use `--filter-status` to show only specific diff statuses:
+  ```bash
+  nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ --filter-status PORT_MISMATCH,MISSING_ASIS
+  ```
+
+  Available statuses: `EXACT_MATCH`, `PORT_MISMATCH`, `DEVICE_MISMATCH`, `MISSING_ASIS`, 
+  `PARTIAL_OBSERVED`, `UNKNOWN`
+
+**Combining Filters:**
+You can combine multiple filters for focused analysis:
+```bash
+nw-check --devices devices.csv --tobe tobe.csv --out-dir out/ \
+  --filter-devices-regex "^leaf" \
+  --filter-status PORT_MISMATCH,MISSING_ASIS
+```
+
+This is particularly useful for:
+- Troubleshooting specific racks or locations
+- Reviewing only mismatches and failures
+- Generating focused reports for specific teams
 
 ### Supervisor + Web Control
 
