@@ -23,20 +23,10 @@ import sys
 import threading
 import time
 import urllib.parse
-from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Sequence
 
 _LOGGER = logging.getLogger(__name__)
-
-
-@dataclass
-class ControlServerContext:
-    """Context for the control server."""
-
-    supervisor: ProcessSupervisor
-    token: str | None
-    stop_event: threading.Event
 
 
 class ProcessSupervisor:
