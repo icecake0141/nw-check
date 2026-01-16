@@ -108,7 +108,7 @@ def test_generate_mermaid_diagram_respects_max_nodes() -> None:
         AsIsLink(
             device_a=f"device{i:02d}",
             port_a="Eth1/1",
-            device_b=f"device{i+1:02d}",
+            device_b=f"device{i + 1:02d}",
             port_b="Eth1/1",
             confidence="observed",
             evidence=("lldp",),

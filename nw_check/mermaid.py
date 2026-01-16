@@ -80,8 +80,7 @@ def generate_mermaid_diagram(
         device_a_id = _sanitize_id(link.device_a)
         device_b_id = _sanitize_id(link.device_b)
         link_line = (
-            f'    {device_a_id}["{link.device_a}"] -->|{label}| '
-            f'{device_b_id}["{link.device_b}"]'
+            f'    {device_a_id}["{link.device_a}"] -->|{label}| {device_b_id}["{link.device_b}"]'
         )
 
         lines.append(link_line)
