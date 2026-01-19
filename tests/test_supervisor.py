@@ -18,7 +18,6 @@ import sys
 from types import SimpleNamespace
 
 import pytest
-
 from nw_check.supervisor import ProcessSupervisor, build_nw_check_command
 
 
