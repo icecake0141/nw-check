@@ -176,6 +176,38 @@ Columns:
 - `snmp_priv` (optional for SNMPv3, format `protocol:secret`, e.g. `aes:privpass`)
 - `aliases` (optional, comma-separated)
 
+#### SNMPv3 Authentication and Privacy Protocols
+
+For SNMPv3, the `snmp_auth` and `snmp_priv` fields use the format `protocol:secret`.
+
+**Supported Authentication Protocols:**
+- `MD5` - Message Digest 5 (case-insensitive)
+- `SHA` or `SHA1` - SHA-1 (case-insensitive)
+- `SHA-224` or `SHA224` - SHA-224 (case-insensitive, with or without hyphen)
+- `SHA-256` or `SHA256` - SHA-256 (case-insensitive, with or without hyphen)
+- `SHA-384` or `SHA384` - SHA-384 (case-insensitive, with or without hyphen)
+- `SHA-512` or `SHA512` - SHA-512 (case-insensitive, with or without hyphen)
+
+**Supported Privacy Protocols:**
+- `DES` - Data Encryption Standard (case-insensitive)
+- `AES`, `AES128`, or `AES-128` - AES 128-bit (case-insensitive, multiple variants)
+- `AES-192` or `AES192` - AES 192-bit (case-insensitive, with or without hyphen)
+- `AES-256` or `AES256` - AES 256-bit (case-insensitive, with or without hyphen)
+
+**Examples:**
+```csv
+name,mgmt_ip,snmp_version,snmp_user,snmp_auth,snmp_priv
+spine01,10.0.0.1,3,snmpuser,sha:authpass,aes:privpass
+spine02,10.0.0.2,3,snmpuser,SHA-256:authpass,AES-256:privpass
+leaf01,10.0.0.3,3,snmpuser,md5:authpass,des:privpass
+leaf02,10.0.0.4,3,snmpuser,sha512:authpass,aes192:privpass
+```
+
+**Error Handling:**
+If an unsupported or invalid protocol is specified, the tool will log a clear error message 
+indicating which device has the invalid configuration and list the supported protocols. The 
+device will be skipped during LLDP collection.
+
 ### Development Commands
 
 - Tests: `python -m pytest`

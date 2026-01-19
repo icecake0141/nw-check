@@ -76,11 +76,11 @@ def test_build_snmpwalk_command_snmpv3_auth_priv() -> None:
         "-u",
         "snmpuser",
         "-a",
-        "sha",
+        "SHA",  # Now normalized to uppercase
         "-A",
         "authpass",
         "-x",
-        "aes",
+        "AES",  # Now normalized to uppercase
         "-X",
         "privpass",
         "10.0.0.1",
@@ -205,3 +205,180 @@ def test_save_and_load_observations(tmp_path) -> None:  # type: ignore[no-untype
     assert loaded[1].local_device == "leaf02"
     assert loaded[1].confidence == "partial"
     assert loaded[1].errors == ("LLDP_PARTIAL_ROW",)
+
+
+def test_normalize_snmpv3_protocol_auth_lowercase() -> None:
+    """Test auth protocol normalization with lowercase input."""
+    from nw_check.lldp_snmp import _normalize_snmpv3_protocol
+
+    assert _normalize_snmpv3_protocol("sha", "auth") == "SHA"
+    assert _normalize_snmpv3_protocol("md5", "auth") == "MD5"
+    assert _normalize_snmpv3_protocol("sha256", "auth") == "SHA-256"
+    assert _normalize_snmpv3_protocol("sha-256", "auth") == "SHA-256"
+
+
+def test_normalize_snmpv3_protocol_auth_uppercase() -> None:
+    """Test auth protocol normalization with uppercase input."""
+    from nw_check.lldp_snmp import _normalize_snmpv3_protocol
+
+    assert _normalize_snmpv3_protocol("SHA", "auth") == "SHA"
+    assert _normalize_snmpv3_protocol("MD5", "auth") == "MD5"
+    assert _normalize_snmpv3_protocol("SHA-256", "auth") == "SHA-256"
+
+
+def test_normalize_snmpv3_protocol_auth_mixed_case() -> None:
+    """Test auth protocol normalization with mixed case input."""
+    from nw_check.lldp_snmp import _normalize_snmpv3_protocol
+
+    assert _normalize_snmpv3_protocol("Sha", "auth") == "SHA"
+    assert _normalize_snmpv3_protocol("Md5", "auth") == "MD5"
+    assert _normalize_snmpv3_protocol("SHA-384", "auth") == "SHA-384"
+
+
+def test_normalize_snmpv3_protocol_auth_unsupported() -> None:
+    """Test auth protocol normalization returns None for unsupported protocols."""
+    from nw_check.lldp_snmp import _normalize_snmpv3_protocol
+
+    assert _normalize_snmpv3_protocol("sha224", "auth") == "SHA-224"  # sha224 is supported
+    assert _normalize_snmpv3_protocol("SHA1", "auth") == "SHA"  # SHA1 is mapped to SHA
+    assert _normalize_snmpv3_protocol("invalid", "auth") is None
+    assert _normalize_snmpv3_protocol("sha1024", "auth") is None  # Unsupported SHA variant
+
+
+def test_normalize_snmpv3_protocol_priv_lowercase() -> None:
+    """Test priv protocol normalization with lowercase input."""
+    from nw_check.lldp_snmp import _normalize_snmpv3_protocol
+
+    assert _normalize_snmpv3_protocol("aes", "priv") == "AES"
+    assert _normalize_snmpv3_protocol("des", "priv") == "DES"
+    assert _normalize_snmpv3_protocol("aes128", "priv") == "AES"
+    assert _normalize_snmpv3_protocol("aes-128", "priv") == "AES"
+    assert _normalize_snmpv3_protocol("aes-192", "priv") == "AES-192"
+    assert _normalize_snmpv3_protocol("aes-256", "priv") == "AES-256"
+
+
+def test_normalize_snmpv3_protocol_priv_uppercase() -> None:
+    """Test priv protocol normalization with uppercase input."""
+    from nw_check.lldp_snmp import _normalize_snmpv3_protocol
+
+    assert _normalize_snmpv3_protocol("AES", "priv") == "AES"
+    assert _normalize_snmpv3_protocol("DES", "priv") == "DES"
+    assert _normalize_snmpv3_protocol("AES-256", "priv") == "AES-256"
+
+
+def test_normalize_snmpv3_protocol_priv_unsupported() -> None:
+    """Test priv protocol normalization returns None for unsupported protocols."""
+    from nw_check.lldp_snmp import _normalize_snmpv3_protocol
+
+    assert _normalize_snmpv3_protocol("3des", "priv") is None
+    assert _normalize_snmpv3_protocol("invalid", "priv") is None
+
+
+def test_validate_snmp_credentials_v3_valid_protocols() -> None:
+    """Test SNMPv3 credential validation accepts valid protocols."""
+    from nw_check.lldp_snmp import _validate_snmp_credentials
+
+    device = Device(
+        name="test01",
+        mgmt_ip="10.0.0.1",
+        snmp_version="3",
+        snmp_user="snmpuser",
+        snmp_auth="sha:authpass",
+        snmp_priv="aes:privpass",
+    )
+    assert _validate_snmp_credentials(device) is True
+
+
+def test_validate_snmp_credentials_v3_case_insensitive() -> None:
+    """Test SNMPv3 credential validation is case insensitive."""
+    from nw_check.lldp_snmp import _validate_snmp_credentials
+
+    device = Device(
+        name="test01",
+        mgmt_ip="10.0.0.1",
+        snmp_version="3",
+        snmp_user="snmpuser",
+        snmp_auth="SHA:authpass",
+        snmp_priv="AES:privpass",
+    )
+    assert _validate_snmp_credentials(device) is True
+
+
+def test_validate_snmp_credentials_v3_protocol_variants() -> None:
+    """Test SNMPv3 credential validation accepts protocol variants."""
+    from nw_check.lldp_snmp import _validate_snmp_credentials
+
+    # Test SHA-256 variant
+    device = Device(
+        name="test01",
+        mgmt_ip="10.0.0.1",
+        snmp_version="3",
+        snmp_user="snmpuser",
+        snmp_auth="sha256:authpass",
+        snmp_priv="aes128:privpass",
+    )
+    assert _validate_snmp_credentials(device) is True
+
+    # Test AES-256 variant
+    device2 = Device(
+        name="test02",
+        mgmt_ip="10.0.0.2",
+        snmp_version="3",
+        snmp_user="snmpuser",
+        snmp_auth="sha-512:authpass",
+        snmp_priv="aes-256:privpass",
+    )
+    assert _validate_snmp_credentials(device2) is True
+
+
+def test_validate_snmp_credentials_v3_invalid_auth_protocol() -> None:
+    """Test SNMPv3 credential validation rejects invalid auth protocols."""
+    from nw_check.lldp_snmp import _validate_snmp_credentials
+
+    device = Device(
+        name="test01",
+        mgmt_ip="10.0.0.1",
+        snmp_version="3",
+        snmp_user="snmpuser",
+        snmp_auth="invalid:authpass",
+        snmp_priv="aes:privpass",
+    )
+    assert _validate_snmp_credentials(device) is False
+
+
+def test_validate_snmp_credentials_v3_invalid_priv_protocol() -> None:
+    """Test SNMPv3 credential validation rejects invalid priv protocols."""
+    from nw_check.lldp_snmp import _validate_snmp_credentials
+
+    device = Device(
+        name="test01",
+        mgmt_ip="10.0.0.1",
+        snmp_version="3",
+        snmp_user="snmpuser",
+        snmp_auth="sha:authpass",
+        snmp_priv="3des:privpass",
+    )
+    assert _validate_snmp_credentials(device) is False
+
+
+def test_build_snmpwalk_command_normalizes_protocols() -> None:
+    """Test that snmpwalk command building normalizes protocol names."""
+    device = Device(
+        name="leaf01",
+        mgmt_ip="10.0.0.1",
+        snmp_version="3",
+        snmp_user="snmpuser",
+        snmp_auth="sha256:authpass",  # lowercase variant
+        snmp_priv="aes128:privpass",  # variant without hyphen
+    )
+
+    command = _build_snmpwalk_command("snmpwalk", device, 2, 1, "LLDP-MIB::lldpRemTable")
+
+    # Check that protocols are normalized
+    assert "-a" in command
+    auth_idx = command.index("-a")
+    assert command[auth_idx + 1] == "SHA-256"  # Should be normalized
+
+    assert "-x" in command
+    priv_idx = command.index("-x")
+    assert command[priv_idx + 1] == "AES"  # Should be normalized (aes128 -> AES)
