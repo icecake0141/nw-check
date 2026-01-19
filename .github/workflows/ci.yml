@@ -36,11 +36,11 @@ jobs:
       - name: Format check
         run: python -m ruff format --check .
       - name: Ruff lint
-        run: python -m ruff check nw_check
+        run: python -m ruff check src/nw_check
       - name: Pylint
-        run: python -m pylint nw_check --fail-under=10.0
+        run: python -m pylint src/nw_check --fail-under=10.0
       - name: Mypy
-        run: python -m mypy nw_check
+        run: python -m mypy src/nw_check
       - name: Tests
         run: python -m pytest
       - name: Pre-commit
