@@ -30,6 +30,33 @@ _LOGGER = logging.getLogger(__name__)
 LLDP_REM_TABLE = "LLDP-MIB::lldpRemTable"
 LLDP_LOC_PORT_TABLE = "LLDP-MIB::lldpLocPortTable"
 
+# Supported SNMPv3 authentication protocols (as per snmpwalk -a option)
+SUPPORTED_AUTH_PROTOCOLS = {
+    "md5": "MD5",
+    "sha": "SHA",
+    "sha1": "SHA",  # SHA-1 is typically just called SHA
+    "sha-224": "SHA-224",
+    "sha224": "SHA-224",
+    "sha-256": "SHA-256",
+    "sha256": "SHA-256",
+    "sha-384": "SHA-384",
+    "sha384": "SHA-384",
+    "sha-512": "SHA-512",
+    "sha512": "SHA-512",
+}
+
+# Supported SNMPv3 privacy protocols (as per snmpwalk -x option)
+SUPPORTED_PRIV_PROTOCOLS = {
+    "des": "DES",
+    "aes": "AES",
+    "aes128": "AES",  # AES and AES-128 are equivalent
+    "aes-128": "AES",
+    "aes-192": "AES-192",
+    "aes192": "AES-192",
+    "aes-256": "AES-256",
+    "aes256": "AES-256",
+}
+
 
 @dataclass(frozen=True)
 class DeviceCollectionResult:
@@ -160,6 +187,27 @@ def _command_exists(command: str) -> bool:
     return Path(command).is_file() or bool(shutil.which(command))
 
 
+def _normalize_snmpv3_protocol(protocol: str, protocol_type: str) -> str | None:
+    """Normalize and validate SNMPv3 auth or priv protocol name.
+
+    Args:
+        protocol: Raw protocol name from config (e.g., "sha", "SHA", "aes128")
+        protocol_type: Either "auth" or "priv" to determine which whitelist to use
+
+    Returns:
+        Normalized protocol name for snmpwalk, or None if unsupported
+    """
+    normalized_input = protocol.lower().strip()
+
+    if protocol_type == "auth":
+        return SUPPORTED_AUTH_PROTOCOLS.get(normalized_input)
+    if protocol_type == "priv":
+        return SUPPORTED_PRIV_PROTOCOLS.get(normalized_input)
+
+    return None
+
+
+# pylint: disable=too-many-return-statements
 def _validate_snmp_credentials(device: Device) -> bool:
     """Validate SNMP credentials for the configured version."""
 
@@ -169,12 +217,41 @@ def _validate_snmp_credentials(device: Device) -> bool:
             return False
         auth = _parse_snmpv3_credential(device.snmp_auth)
         priv = _parse_snmpv3_credential(device.snmp_priv)
+
+        # Validate authPriv combinations
         if priv and not auth:
             return False
         if device.snmp_auth and not auth:
             return False
         if device.snmp_priv and not priv:
             return False
+
+        # Validate auth protocol if present
+        if auth:
+            auth_protocol, _ = auth
+            normalized_auth = _normalize_snmpv3_protocol(auth_protocol, "auth")
+            if normalized_auth is None:
+                _LOGGER.error(
+                    "Unsupported auth protocol '%s' for device %s. "
+                    "Supported: MD5, SHA, SHA-224, SHA-256, SHA-384, SHA-512",
+                    auth_protocol,
+                    device.name,
+                )
+                return False
+
+        # Validate priv protocol if present
+        if priv:
+            priv_protocol, _ = priv
+            normalized_priv = _normalize_snmpv3_protocol(priv_protocol, "priv")
+            if normalized_priv is None:
+                _LOGGER.error(
+                    "Unsupported priv protocol '%s' for device %s. "
+                    "Supported: DES, AES, AES-192, AES-256",
+                    priv_protocol,
+                    device.name,
+                )
+                return False
+
         return True
     return bool(device.snmp_community)
 
@@ -230,9 +307,17 @@ def _snmpv3_args(device: Device) -> list[str]:
 
     args = ["-l", level, "-u", device.snmp_user or ""]
     if auth:
-        args.extend(["-a", auth[0], "-A", auth[1]])
+        auth_protocol, auth_secret = auth
+        # Normalize the auth protocol name
+        normalized_auth = _normalize_snmpv3_protocol(auth_protocol, "auth")
+        # Use normalized protocol or fall back to original (validation should catch invalid ones)
+        args.extend(["-a", normalized_auth or auth_protocol, "-A", auth_secret])
     if priv:
-        args.extend(["-x", priv[0], "-X", priv[1]])
+        priv_protocol, priv_secret = priv
+        # Normalize the priv protocol name
+        normalized_priv = _normalize_snmpv3_protocol(priv_protocol, "priv")
+        # Use normalized protocol or fall back to original (validation should catch invalid ones)
+        args.extend(["-x", normalized_priv or priv_protocol, "-X", priv_secret])
     return args
 
 
