@@ -1,5 +1,7 @@
 # nw-check
 
+English | [日本語](README.ja.md)
+
 ## Requirements
 
 ### Functional Requirements
