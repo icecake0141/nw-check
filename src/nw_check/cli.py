@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from pathlib import Path
 
 from nw_check.diff import diff_links
@@ -62,6 +63,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="INFO",
         choices=["INFO", "DEBUG", "WARN"],
         help="log level",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="enable detailed debug logging for troubleshooting "
+        "(can also be enabled via NW_CHECK_DEBUG environment variable)",
     )
     parser.add_argument(
         "--output-format",
@@ -120,10 +127,24 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def configure_logging(level: str) -> None:
-    """Configure logging."""
-
-    logging.basicConfig(level=getattr(logging, level), format="%(levelname)s %(message)s")
+def configure_logging(level: str, debug: bool = False) -> None:
+    """Configure logging.
+    
+    Args:
+        level: Log level string (INFO, DEBUG, WARN)
+        debug: If True, enables DEBUG level and detailed formatting
+    """
+    # Check environment variable for debug mode
+    env_debug = os.environ.get("NW_CHECK_DEBUG", "").lower() in ("1", "true", "yes")
+    debug = debug or env_debug
+    
+    if debug:
+        level = "DEBUG"
+        log_format = "%(levelname)s [%(name)s:%(funcName)s:%(lineno)d] %(message)s"
+    else:
+        log_format = "%(levelname)s %(message)s"
+    
+    logging.basicConfig(level=getattr(logging, level), format=log_format)
 
 
 def main() -> int:
@@ -132,7 +153,7 @@ def main() -> int:
 
     parser = build_parser()
     args = parser.parse_args()
-    configure_logging(args.log_level)
+    configure_logging(args.log_level, args.debug)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
