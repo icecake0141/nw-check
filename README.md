@@ -1,3 +1,11 @@
+<!--
+Copyright 2025 nw-check contributors
+SPDX-License-Identifier: Apache-2.0
+
+This file was created or modified with the assistance of an AI (Large Language Model).
+Review required for correctness, security, and licensing.
+-->
+
 # nw-check
 
 English | [日本語](README.ja.md)
@@ -137,7 +145,7 @@ English | [日本語](README.ja.md)
 3. Port match with device mismatch evidence.
 4. Partial matches using chassis ID or remote system name if ambiguous.
 
-### Uncertainty 표현
+### Uncertainty Representation
 
 - If remote device name is unresolved, report `PARTIAL_OBSERVED` with `reason` including the raw chassis ID.
 - If multiple As-Is candidates match a To-Be link, report `UNKNOWN` with candidates listed.
@@ -209,6 +217,30 @@ leaf02,10.0.0.4,3,snmpuser,sha512:authpass,aes192:privpass
 If an unsupported or invalid protocol is specified, the tool will log a clear error message 
 indicating which device has the invalid configuration and list the supported protocols. The 
 device will be skipped during LLDP collection.
+
+### To-Be Wiring CSV
+
+The To-Be wiring CSV defines the intended network link topology for validation.
+
+Columns:
+- `device_a` (required): Name of the first device in the link (must match a device name from inventory)
+- `port_a` (required): Port identifier on device_a (e.g., `Eth1/1`, `GigabitEthernet0/1`)
+- `device_b` (required): Name of the second device in the link (must match a device name from inventory)
+- `port_b` (required): Port identifier on device_b (e.g., `Eth1/1`, `GigabitEthernet0/1`)
+
+**Example (`tobe.csv`):**
+```csv
+device_a,port_a,device_b,port_b
+leaf01,Eth1/1,spine01,Eth1/1
+leaf01,Eth1/2,spine02,Eth1/1
+leaf02,Eth1/1,spine01,Eth1/2
+leaf02,Eth1/2,spine02,Eth1/2
+```
+
+**Notes:**
+- Port names will be normalized during comparison to handle vendor-specific abbreviations
+- The order of device_a/device_b doesn't matter; links are treated as bidirectional
+- Each row represents a single physical link between two devices
 
 ### Development Commands
 
@@ -495,9 +527,10 @@ graph LR
 
 ### Dependencies
 
-- `pysnmp` for SNMP collection
-- `pydantic` (optional) for schema validation
-- `rich` (optional) for table output in terminal
+- Python 3.10 or later
+- `snmpwalk` CLI command (from net-snmp package) for SNMP/LLDP collection
+  - Must be available on your system PATH
+  - Used to query LLDP-MIB tables from network devices
 
 ### Logging
 

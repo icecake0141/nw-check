@@ -1,5 +1,5 @@
 <!--
-Copyright 2024 nw-check contributors
+Copyright 2025 nw-check contributors
 SPDX-License-Identifier: Apache-2.0
 
 This file was created or modified with the assistance of an AI (Large Language Model).
@@ -215,6 +215,30 @@ leaf02,10.0.0.4,3,snmpuser,sha512:authpass,aes192:privpass
 
 **エラーハンドリング:**
 サポートされていないまたは無効なプロトコルが指定された場合、ツールは無効な設定を持つデバイスを示し、サポートされているプロトコルをリストアップする明確なエラーメッセージをログに記録します。そのデバイスはLLDP収集中にスキップされます。
+
+### To-Be配線CSV
+
+To-Be配線CSVは、検証のための意図されたネットワークリンクトポロジーを定義します。
+
+カラム:
+- `device_a`（必須）: リンクの最初のデバイスの名前（インベントリのデバイス名と一致する必要があります）
+- `port_a`（必須）: device_aのポート識別子（例: `Eth1/1`、`GigabitEthernet0/1`）
+- `device_b`（必須）: リンクの2番目のデバイスの名前（インベントリのデバイス名と一致する必要があります）
+- `port_b`（必須）: device_bのポート識別子（例: `Eth1/1`、`GigabitEthernet0/1`）
+
+**例（`tobe.csv`）:**
+```csv
+device_a,port_a,device_b,port_b
+leaf01,Eth1/1,spine01,Eth1/1
+leaf01,Eth1/2,spine02,Eth1/1
+leaf02,Eth1/1,spine01,Eth1/2
+leaf02,Eth1/2,spine02,Eth1/2
+```
+
+**注意:**
+- ポート名は比較中に正規化され、ベンダー固有の略語を処理します
+- device_a/device_bの順序は重要ではありません。リンクは双方向として扱われます
+- 各行は2つのデバイス間の単一の物理リンクを表します
 
 ### 開発コマンド
 
@@ -486,9 +510,10 @@ graph LR
 
 ### 依存関係
 
-- `pysnmp`: SNMP収集用
-- `pydantic`（オプション）: スキーマ検証用
-- `rich`（オプション）: ターミナルでのテーブル出力用
+- Python 3.10以降
+- `snmpwalk` CLIコマンド（net-snmpパッケージから）SNMP/LLDP収集用
+  - システムのPATH上で利用可能である必要があります
+  - ネットワークデバイスからLLDP-MIBテーブルをクエリするために使用されます
 
 ### ログ
 
