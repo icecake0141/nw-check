@@ -37,6 +37,7 @@ from nw_check.output import (
     write_asis_links_json,
     write_diff_links,
     write_diff_links_json,
+    write_lldp_port_info_markdown,
     write_summary,
     write_summary_json,
 )
@@ -227,6 +228,14 @@ def main() -> int:
             diffs,
             max_nodes=args.mermaid_max_nodes,
         )
+
+    # Always generate Markdown output for LLDP and port info
+    write_lldp_port_info_markdown(
+        out_dir / "lldp_port_info.md",
+        asis_links,
+        diffs,
+        errors,
+    )
 
     if errors:
         return 2

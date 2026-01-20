@@ -18,6 +18,7 @@ from nw_check.models import AsIsLink, LinkDiff, LinkIntent
 from nw_check.output import (
     write_asis_links_json,
     write_diff_links_json,
+    write_lldp_port_info_markdown,
     write_summary,
     write_summary_json,
 )
@@ -183,3 +184,89 @@ def test_write_summary_json(tmp_path: Path) -> None:
     assert data["lldp_failed_devices"] == ["leaf01", "leaf02"]
     assert data["missing_ports"] == 1
     assert data["mismatch_links"] == 1
+
+
+def test_write_lldp_port_info_markdown(tmp_path: Path) -> None:
+    """Test Markdown output for LLDP and port information."""
+    asis_links = [
+        AsIsLink(
+            device_a="leaf01",
+            port_a="Eth1/1",
+            device_b="spine01",
+            port_b="Eth1/1",
+            confidence="observed",
+            evidence=("lldp",),
+        ),
+        AsIsLink(
+            device_a="leaf02",
+            port_a="Eth1/2",
+            device_b="unknown",
+            port_b="unknown",
+            confidence="partial",
+            evidence=("lldp:missing_remote",),
+        ),
+    ]
+
+    diffs = [
+        LinkDiff(
+            tobe_link=LinkIntent(
+                device_a="leaf01",
+                port_a_raw="Eth1/1",
+                port_a_norm="Eth1/1",
+                device_b="spine01",
+                port_b_raw="Eth1/1",
+                port_b_norm="Eth1/1",
+            ),
+            asis_link=asis_links[0],
+            status="EXACT_MATCH",
+            reason="normalized ports matched",
+        ),
+        LinkDiff(
+            tobe_link=LinkIntent(
+                device_a="leaf01",
+                port_a_raw="Eth1/2",
+                port_a_norm="Eth1/2",
+                device_b="spine01",
+                port_b_raw="Eth1/2",
+                port_b_norm="Eth1/2",
+            ),
+            asis_link=None,
+            status="MISSING_ASIS",
+            reason="no lldp observation",
+        ),
+    ]
+
+    md_path = tmp_path / "lldp_port_info.md"
+    write_lldp_port_info_markdown(md_path, asis_links, diffs, ["leaf03"])
+
+    content = md_path.read_text(encoding="utf-8")
+
+    # Check header
+    assert "# LLDP and Port Information" in content
+
+    # Check summary section
+    assert "## Summary" in content
+    assert "**Total Links Discovered**: 2" in content
+    assert "**Exact Matches**: 1" in content
+    assert "**Mismatches**: 1" in content
+    assert "**Links with Missing Port Info**: 1" in content
+    assert "**Devices with LLDP Collection Failures**: 1" in content
+    assert "Failed devices: leaf03" in content
+
+    # Check As-Is Links table
+    assert "## As-Is Links (Discovered via LLDP)" in content
+    assert (
+        "| Local Device | Local Port | Remote Device | Remote Port | Confidence | Evidence |"
+    ) in content
+    assert "| leaf01 | Eth1/1 | spine01 | Eth1/1 | observed | lldp |" in content
+    assert ("| leaf02 | Eth1/2 | unknown | unknown | partial | lldp:missing_remote |") in content
+
+    # Check To-Be vs As-Is Comparison table
+    assert "## To-Be vs As-Is Comparison" in content
+    assert "| Device A | Port A | Device B | Port B | Status | Reason |" in content
+    assert (
+        "| leaf01 | Eth1/1 | spine01 | Eth1/1 | EXACT_MATCH | normalized ports matched |"
+    ) in content
+    assert (
+        "| leaf01 | Eth1/2 | spine01 | Eth1/2 | MISSING_ASIS | no lldp observation |"
+    ) in content

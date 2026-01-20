@@ -85,14 +85,42 @@ def collect_lldp_observations(
 
     for idx, device in enumerate(devices_list, start=1):
         if show_progress:
-            _LOGGER.info("Progress: [%d/%d] Collecting from %s", idx, total, device.name)
+            # Show percentage at start of device processing (idx-1 devices completed)
+            percentage = ((idx - 1) * 100) // total if total > 0 else 0
+            _LOGGER.info(
+                "Progress: [%d/%d, %d%%] Collecting from %s",
+                idx,
+                total,
+                percentage,
+                device.name,
+            )
         result = _collect_for_device(device, timeout, retries, alias_map, snmpwalk_cmd, verbose)
         all_observations.extend(result.observations)
         if result.errors:
             failed_devices.append(device.name)
 
+        if show_progress:
+            obs_count = len(result.observations)
+            total_obs_count = len(all_observations)
+            if result.errors:
+                _LOGGER.info(
+                    "  └─ Device %s: Failed with errors: %s",
+                    device.name,
+                    ", ".join(result.errors),
+                )
+            else:
+                _LOGGER.info(
+                    "  └─ Device %s: Collected %d observations (total: %d)",
+                    device.name,
+                    obs_count,
+                    total_obs_count,
+                )
+
     if show_progress and total > 0:
         _LOGGER.info("Collection complete: %d/%d devices processed", total, total)
+        _LOGGER.info("Total observations collected: %d", len(all_observations))
+        if failed_devices:
+            _LOGGER.info("Failed devices (%d): %s", len(failed_devices), ", ".join(failed_devices))
 
     return all_observations, failed_devices
 
