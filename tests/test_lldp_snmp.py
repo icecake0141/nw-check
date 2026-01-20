@@ -95,7 +95,7 @@ def test_parse_rem_table_very_long_multipart_index() -> None:
 
     rows = _parse_rem_table(lines)
 
-    # Should extract "1.2.3.49" as local port (everything between timeMark and remoteIndex)
+    # Should extract "1.2.3.49" as local port
     assert rows[0].local_port == "1.2.3.49"
     assert rows[0].remote_chassis == "chassisD"
     assert rows[0].remote_port == "Eth1/2/3/49"
