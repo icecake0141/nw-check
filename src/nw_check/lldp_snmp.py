@@ -487,7 +487,18 @@ def _parse_rem_table(lines: Iterable[str]) -> list[RemRow]:
                 values[key] = _strip_snmp_value(match.group("value"))
     rem_rows: list[RemRow] = []
     for index, values in rows.items():
-        local_port = index.split(".")[1] if "." in index else index
+        # Extract local port from LLDP index: timeMark.localPortNum.remoteIndex
+        # localPortNum can be multi-part (e.g., "1.49" for modular switches)
+        parts = index.split(".")
+        if len(parts) >= 3:
+            # Extract everything between first (timeMark) and last (remoteIndex)
+            local_port = ".".join(parts[1:-1])
+        elif len(parts) == 2:
+            # Simple case: timeMark.localPortNum (no remoteIndex)
+            local_port = parts[1]
+        else:
+            # No dots in index, use as-is
+            local_port = index
         rem_rows.append(
             RemRow(
                 local_port=local_port,

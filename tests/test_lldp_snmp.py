@@ -51,6 +51,57 @@ def test_parse_rem_table_groups_rows() -> None:
     assert rows[0].remote_sys_name == "spine01"
 
 
+def test_parse_rem_table_multipart_port_index() -> None:
+    """Test parsing LLDP remote table with multi-part local port indices.
+
+    For modular/stacked switches, the local port number can be multi-part
+    (e.g., "1.49" for module 1, port 49). The LLDP index format is:
+    timeMark.localPortNum.remoteIndex, where localPortNum can contain dots.
+    """
+    lines = [
+        "LLDP-MIB::lldpRemChassisId.0.1.49.1 = STRING: chassisB",
+        "LLDP-MIB::lldpRemPortId.0.1.49.1 = STRING: Eth1/13",
+        "LLDP-MIB::lldpRemSysName.0.1.49.1 = STRING: spine02",
+        "LLDP-MIB::lldpRemChassisId.0.1.50.1 = STRING: chassisC",
+        "LLDP-MIB::lldpRemPortId.0.1.50.1 = STRING: Eth1/14",
+        "LLDP-MIB::lldpRemSysName.0.1.50.1 = STRING: spine03",
+    ]
+
+    rows = _parse_rem_table(lines)
+
+    # Should have two rows
+    assert len(rows) == 2
+
+    # First row: port 1.49
+    assert rows[0].local_port == "1.49"
+    assert rows[0].remote_chassis == "chassisB"
+    assert rows[0].remote_port == "Eth1/13"
+    assert rows[0].remote_sys_name == "spine02"
+
+    # Second row: port 1.50
+    assert rows[1].local_port == "1.50"
+    assert rows[1].remote_chassis == "chassisC"
+    assert rows[1].remote_port == "Eth1/14"
+    assert rows[1].remote_sys_name == "spine03"
+
+
+def test_parse_rem_table_very_long_multipart_index() -> None:
+    """Test parsing with very long multi-part port indices (e.g., chassis.slot.module.port)."""
+    lines = [
+        "LLDP-MIB::lldpRemChassisId.0.1.2.3.49.1 = STRING: chassisD",
+        "LLDP-MIB::lldpRemPortId.0.1.2.3.49.1 = STRING: Eth1/2/3/49",
+        "LLDP-MIB::lldpRemSysName.0.1.2.3.49.1 = STRING: spine04",
+    ]
+
+    rows = _parse_rem_table(lines)
+
+    # Should extract "1.2.3.49" as local port (everything between timeMark and remoteIndex)
+    assert rows[0].local_port == "1.2.3.49"
+    assert rows[0].remote_chassis == "chassisD"
+    assert rows[0].remote_port == "Eth1/2/3/49"
+    assert rows[0].remote_sys_name == "spine04"
+
+
 def test_build_snmpwalk_command_snmpv3_auth_priv() -> None:
     device = Device(
         name="leaf01",
