@@ -175,3 +175,97 @@ def write_summary_json(
     with Path(path).open("w", encoding="utf-8") as handle:
         json.dump(data, handle, indent=2, ensure_ascii=False)
         handle.write("\n")
+
+
+def write_lldp_port_info_markdown(
+    path: str | Path,
+    asis_links: list[AsIsLink],
+    diffs: list[LinkDiff],
+    errors: list[str],
+) -> None:
+    """Write LLDP and port information as a Markdown table.
+
+    Args:
+        path: Output file path for the Markdown file
+        asis_links: List of As-Is links discovered via LLDP
+        diffs: List of link diffs comparing To-Be vs As-Is
+        errors: List of device names where LLDP collection failed
+    """
+    with Path(path).open("w", encoding="utf-8") as handle:
+        # Write header
+        handle.write("# LLDP and Port Information\n\n")
+
+        # Write summary section
+        handle.write("## Summary\n\n")
+        lldp_failed_devices = sorted(set(errors))
+        missing_ports = sum(
+            1
+            for link in asis_links
+            for port in (link.port_a, link.port_b)
+            if port == UNKNOWN_VALUE
+        )
+        mismatch_links = sum(1 for diff in diffs if diff.status != "EXACT_MATCH")
+        total_links = len(asis_links)
+        exact_matches = sum(1 for diff in diffs if diff.status == "EXACT_MATCH")
+
+        handle.write(f"- **Total Links Discovered**: {total_links}\n")
+        handle.write(f"- **Exact Matches**: {exact_matches}\n")
+        handle.write(f"- **Mismatches**: {mismatch_links}\n")
+        handle.write(f"- **Links with Missing Port Info**: {missing_ports}\n")
+        handle.write(
+            f"- **Devices with LLDP Collection Failures**: {len(lldp_failed_devices)}\n"
+        )
+        if lldp_failed_devices:
+            handle.write(f"  - Failed devices: {', '.join(lldp_failed_devices)}\n")
+        handle.write("\n")
+
+        # Write As-Is Links table
+        handle.write("## As-Is Links (Discovered via LLDP)\n\n")
+        handle.write(
+            "| Local Device | Local Port | Remote Device | Remote Port | Confidence | Evidence |\n"
+        )
+        handle.write(
+            "|--------------|------------|---------------|-------------|------------|----------|\n"
+        )
+
+        sorted_links = sorted(
+            asis_links,
+            key=lambda item: (item.device_a, item.port_a, item.device_b, item.port_b),
+        )
+
+        for link in sorted_links:
+            evidence_str = ", ".join(link.evidence)
+            handle.write(
+                f"| {link.device_a} | {link.port_a} | {link.device_b} | "
+                f"{link.port_b} | {link.confidence} | {evidence_str} |\n"
+            )
+
+        handle.write("\n")
+
+        # Write To-Be vs As-Is Diff table
+        handle.write("## To-Be vs As-Is Comparison\n\n")
+        handle.write(
+            "| Device A | Port A | Device B | Port B | Status | Reason |\n"
+        )
+        handle.write(
+            "|----------|--------|----------|--------|--------|--------|\n"
+        )
+
+        sorted_diffs = sorted(
+            diffs,
+            key=lambda item: (
+                item.tobe_link.device_a,
+                item.tobe_link.port_a_norm,
+                item.tobe_link.device_b,
+                item.tobe_link.port_b_norm,
+            ),
+        )
+
+        for diff in sorted_diffs:
+            handle.write(
+                f"| {diff.tobe_link.device_a} | {diff.tobe_link.port_a_norm} | "
+                f"{diff.tobe_link.device_b} | {diff.tobe_link.port_b_norm} | "
+                f"{diff.status} | {diff.reason} |\n"
+            )
+
+        handle.write("\n")
