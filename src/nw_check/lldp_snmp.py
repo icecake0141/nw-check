@@ -85,7 +85,8 @@ def collect_lldp_observations(
 
     for idx, device in enumerate(devices_list, start=1):
         if show_progress:
-            percentage = (idx * 100) // total
+            # Show percentage at start of device processing (idx-1 devices completed)
+            percentage = ((idx - 1) * 100) // total if total > 0 else 0
             _LOGGER.info(
                 "Progress: [%d/%d, %d%%] Collecting from %s",
                 idx,

@@ -21,6 +21,20 @@ from typing import Any
 from nw_check.models import UNKNOWN_VALUE, AsIsLink, LinkDiff
 
 
+def _count_missing_ports(asis_links: list[AsIsLink]) -> int:
+    """Count the number of links with missing (unknown) port information.
+
+    Args:
+        asis_links: List of As-Is links to analyze
+
+    Returns:
+        Count of links with at least one unknown port
+    """
+    return sum(
+        1 for link in asis_links for port in (link.port_a, link.port_b) if port == UNKNOWN_VALUE
+    )
+
+
 def write_asis_links(path: str | Path, links: list[AsIsLink]) -> None:
     """Write As-Is links CSV."""
 
@@ -88,9 +102,7 @@ def write_summary(
     """Write summary report."""
 
     lldp_failed_devices = sorted(set(errors))
-    missing_ports = sum(
-        1 for link in asis_links for port in (link.port_a, link.port_b) if port == UNKNOWN_VALUE
-    )
+    missing_ports = _count_missing_ports(asis_links)
     mismatch_links = sum(1 for diff in diffs if diff.status != "EXACT_MATCH")
 
     with Path(path).open("w", encoding="utf-8") as handle:
@@ -161,9 +173,7 @@ def write_summary_json(
     """Write summary report JSON."""
 
     lldp_failed_devices = sorted(set(errors))
-    missing_ports = sum(
-        1 for link in asis_links for port in (link.port_a, link.port_b) if port == UNKNOWN_VALUE
-    )
+    missing_ports = _count_missing_ports(asis_links)
     mismatch_links = sum(1 for diff in diffs if diff.status != "EXACT_MATCH")
 
     data = {
@@ -198,12 +208,7 @@ def write_lldp_port_info_markdown(
         # Write summary section
         handle.write("## Summary\n\n")
         lldp_failed_devices = sorted(set(errors))
-        missing_ports = sum(
-            1
-            for link in asis_links
-            for port in (link.port_a, link.port_b)
-            if port == UNKNOWN_VALUE
-        )
+        missing_ports = _count_missing_ports(asis_links)
         mismatch_links = sum(1 for diff in diffs if diff.status != "EXACT_MATCH")
         total_links = len(asis_links)
         exact_matches = sum(1 for diff in diffs if diff.status == "EXACT_MATCH")
