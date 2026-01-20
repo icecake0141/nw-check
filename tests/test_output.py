@@ -256,20 +256,16 @@ def test_write_lldp_port_info_markdown(tmp_path: Path) -> None:
     # Check As-Is Links table
     assert "## As-Is Links (Discovered via LLDP)" in content
     assert (
-        "| Local Device | Local Port | Remote Device | Remote Port | "
-        "Confidence | Evidence |"
+        "| Local Device | Local Port | Remote Device | Remote Port | Confidence | Evidence |"
     ) in content
     assert "| leaf01 | Eth1/1 | spine01 | Eth1/1 | observed | lldp |" in content
-    assert (
-        "| leaf02 | Eth1/2 | unknown | unknown | partial | lldp:missing_remote |"
-    ) in content
+    assert ("| leaf02 | Eth1/2 | unknown | unknown | partial | lldp:missing_remote |") in content
 
     # Check To-Be vs As-Is Comparison table
     assert "## To-Be vs As-Is Comparison" in content
     assert "| Device A | Port A | Device B | Port B | Status | Reason |" in content
     assert (
-        "| leaf01 | Eth1/1 | spine01 | Eth1/1 | EXACT_MATCH | "
-        "normalized ports matched |"
+        "| leaf01 | Eth1/1 | spine01 | Eth1/1 | EXACT_MATCH | normalized ports matched |"
     ) in content
     assert (
         "| leaf01 | Eth1/2 | spine01 | Eth1/2 | MISSING_ASIS | no lldp observation |"

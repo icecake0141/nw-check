@@ -220,9 +220,7 @@ def write_lldp_port_info_markdown(
         handle.write(f"- **Exact Matches**: {exact_matches}\n")
         handle.write(f"- **Mismatches**: {mismatch_links}\n")
         handle.write(f"- **Links with Missing Port Info**: {missing_ports}\n")
-        handle.write(
-            f"- **Devices with LLDP Collection Failures**: {len(lldp_failed_devices)}\n"
-        )
+        handle.write(f"- **Devices with LLDP Collection Failures**: {len(lldp_failed_devices)}\n")
         if lldp_failed_devices:
             handle.write(f"  - Failed devices: {', '.join(lldp_failed_devices)}\n")
         handle.write("\n")
@@ -252,12 +250,8 @@ def write_lldp_port_info_markdown(
 
         # Write To-Be vs As-Is Diff table
         handle.write("## To-Be vs As-Is Comparison\n\n")
-        handle.write(
-            "| Device A | Port A | Device B | Port B | Status | Reason |\n"
-        )
-        handle.write(
-            "|----------|--------|----------|--------|--------|--------|\n"
-        )
+        handle.write("| Device A | Port A | Device B | Port B | Status | Reason |\n")
+        handle.write("|----------|--------|----------|--------|--------|--------|\n")
 
         sorted_diffs = sorted(
             diffs,
