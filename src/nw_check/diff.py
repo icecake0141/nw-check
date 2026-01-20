@@ -13,7 +13,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from nw_check.models import UNKNOWN_VALUE, AsIsLink, LinkDiff, LinkIntent
+
+_LOGGER = logging.getLogger(__name__)
 
 STATUS_EXACT_MATCH = "EXACT_MATCH"
 STATUS_PORT_MISMATCH = "PORT_MISMATCH"
@@ -26,13 +30,28 @@ STATUS_UNKNOWN = "UNKNOWN"
 def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list[LinkDiff]:
     """Compare To-Be links against As-Is links."""
 
+    _LOGGER.debug(
+        "Starting diff comparison: %d To-Be links vs %d As-Is links",
+        len(tobe_links),
+        len(asis_links),
+    )
+
     asis_by_key = {
         _canonical_key(link.device_a, link.port_a, link.device_b, link.port_b): link
         for link in asis_links
     }
+    _LOGGER.debug("Built As-Is lookup table with %d canonical keys", len(asis_by_key))
 
     diff_results: list[LinkDiff] = []
     for intent in tobe_links:
+        _LOGGER.debug(
+            "Comparing To-Be link: %s[%s] <-> %s[%s]",
+            intent.device_a,
+            intent.port_a_norm,
+            intent.device_b,
+            intent.port_b_norm,
+        )
+
         key = _canonical_key(
             intent.device_a,
             intent.port_a_norm,
@@ -41,6 +60,7 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
         )
         exact = asis_by_key.get(key)
         if exact:
+            _LOGGER.debug("Exact match found for key: %s", key)
             diff_results.append(
                 LinkDiff(
                     tobe_link=intent,
@@ -51,8 +71,12 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
             )
             continue
 
+        _LOGGER.debug("No exact match, searching for candidates")
         candidates = _find_candidates(intent, asis_links)
+        _LOGGER.debug("Found %d candidate(s)", len(candidates))
+
         if len(candidates) > 1:
+            _LOGGER.debug("Multiple candidates found, marking as UNKNOWN")
             diff_results.append(
                 LinkDiff(
                     tobe_link=intent,
@@ -65,7 +89,15 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
 
         if candidates:
             candidate = candidates[0]
+            _LOGGER.debug(
+                "Single candidate found: %s[%s] <-> %s[%s]",
+                candidate.device_a,
+                candidate.port_a,
+                candidate.device_b,
+                candidate.port_b,
+            )
             if _is_partial(candidate):
+                _LOGGER.debug("Candidate is partial observation")
                 diff_results.append(
                     LinkDiff(
                         tobe_link=intent,
@@ -77,6 +109,7 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
                 continue
 
         if _has_device_match(intent, asis_links):
+            _LOGGER.debug("Device match found, but port mismatch")
             reason = _port_mismatch_reason(intent, asis_links)
             diff_results.append(
                 LinkDiff(
@@ -89,6 +122,7 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
             continue
 
         if _has_port_match(intent, asis_links):
+            _LOGGER.debug("Port match found, but device mismatch")
             reason = _device_mismatch_reason(intent, asis_links)
             diff_results.append(
                 LinkDiff(
@@ -100,6 +134,7 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
             )
             continue
 
+        _LOGGER.debug("No match found, marking as MISSING_ASIS")
         diff_results.append(
             LinkDiff(
                 tobe_link=intent,
@@ -109,6 +144,7 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
             )
         )
 
+    _LOGGER.debug("Diff comparison complete: %d results", len(diff_results))
     return diff_results
 
 

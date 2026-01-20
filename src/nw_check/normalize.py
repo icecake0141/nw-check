@@ -13,9 +13,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
 
 from nw_check.models import UNKNOWN_VALUE
+
+_LOGGER = logging.getLogger(__name__)
 
 _PREFIX_MAP: tuple[tuple[str, str], ...] = (
     (r"^ethernet", "Eth"),
@@ -33,10 +36,12 @@ def normalize_interface_name(raw_name: str) -> str:
     """Normalize interface names to a canonical form."""
 
     if not raw_name:
+        _LOGGER.debug("Empty interface name, returning UNKNOWN")
         return UNKNOWN_VALUE
 
     cleaned = re.sub(r"\s+", "", raw_name.strip())
     if not cleaned:
+        _LOGGER.debug("Whitespace-only interface name, returning UNKNOWN")
         return UNKNOWN_VALUE
 
     normalized = cleaned.replace("-", "/")
@@ -45,6 +50,13 @@ def normalize_interface_name(raw_name: str) -> str:
         match = re.match(pattern, lowered)
         if match:
             suffix = normalized[match.end() :]
-            return f"{prefix}{suffix}"
+            result = f"{prefix}{suffix}"
+            if result != raw_name:
+                _LOGGER.debug("Normalized interface name: '%s' -> '%s'", raw_name, result)
+            return result
 
+    if normalized != raw_name:
+        _LOGGER.debug(
+            "Normalized interface name (dash to slash): '%s' -> '%s'", raw_name, normalized
+        )
     return normalized
