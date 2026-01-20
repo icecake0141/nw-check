@@ -109,13 +109,13 @@ def _merge_confidence(observations: list[LinkObservation]) -> str:
         len(observations),
         confidences,
     )
-    
+
     if "observed" in confidences and len(observations) > 1:
         result = "observed"
     elif "partial" in confidences:
         result = "partial"
     else:
         result = "unknown"
-    
+
     _LOGGER.debug("Merged confidence result: %s", result)
     return result

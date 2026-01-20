@@ -129,7 +129,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def configure_logging(level: str, debug: bool = False) -> None:
     """Configure logging.
-    
+
     Args:
         level: Log level string (INFO, DEBUG, WARN)
         debug: If True, enables DEBUG level and detailed formatting
@@ -137,13 +137,13 @@ def configure_logging(level: str, debug: bool = False) -> None:
     # Check environment variable for debug mode
     env_debug = os.environ.get("NW_CHECK_DEBUG", "").lower() in ("1", "true", "yes")
     debug = debug or env_debug
-    
+
     if debug:
         level = "DEBUG"
         log_format = "%(levelname)s [%(name)s:%(funcName)s:%(lineno)d] %(message)s"
     else:
         log_format = "%(levelname)s %(message)s"
-    
+
     logging.basicConfig(level=getattr(logging, level), format=log_format)
 
 

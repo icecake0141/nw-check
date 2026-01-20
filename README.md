@@ -418,17 +418,41 @@ pip install -e .
 
 ### Getting More Help
 
-1. **Enable verbose logging**:
+1. **Enable debug logging for detailed troubleshooting**:
+   ```bash
+   # Using the --debug flag
+   nw-check --devices devices.csv --tobe tobe.csv --out-dir output/ --debug
+   
+   # Or using environment variable
+   export NW_CHECK_DEBUG=1
+   nw-check --devices devices.csv --tobe tobe.csv --out-dir output/
+   ```
+   
+   Debug logging provides detailed information about:
+   - LLDP collection from each device
+   - Port normalization steps (e.g., `Ethernet1/1` → `Eth1/1`)
+   - Device name resolution via alias map
+   - Link deduplication and confidence merging
+   - To-Be vs As-Is comparison logic and candidate matching
+   - CSV parsing and data loading
+   
+   This is especially useful for:
+   - Troubleshooting port mapping issues
+   - Understanding why links don't match
+   - Root-cause analysis of field discrepancies
+   - Debugging device identification problems
+
+2. **Enable verbose logging** (less detailed than debug):
    ```bash
    nw-check --devices devices.csv --tobe tobe.csv --out-dir output/ --log-level DEBUG
    ```
 
-2. **Enable SNMP command logging** (secrets are redacted):
+3. **Enable SNMP command logging** (secrets are redacted):
    ```bash
    nw-check --devices devices.csv --tobe tobe.csv --out-dir output/ --snmp-verbose
    ```
 
-3. **Check the Issues on GitHub**: [icecake0141/nw-check/issues](https://github.com/icecake0141/nw-check/issues)
+4. **Check the Issues on GitHub**: [icecake0141/nw-check/issues](https://github.com/icecake0141/nw-check/issues)
 
 ## Complete Reference
 
@@ -522,6 +546,7 @@ leaf02,Eth1/2,spine02,Eth1/2
 - `--output-format FORMAT`: Output format: `csv`, `json`, or `both` (default: `csv`)
 - `--show-progress`: Display progress during LLDP collection
 - `--log-level LEVEL`: Logging level: `INFO`, `DEBUG`, or `WARN` (default: `INFO`)
+- `--debug`: Enable detailed debug logging with enhanced formatting for troubleshooting (can also be enabled via `NW_CHECK_DEBUG` environment variable)
 
 **Dry-Run and Observation Management**:
 - `--dry-run`: Skip SNMP collection and use saved observations (requires `--load-observations`)

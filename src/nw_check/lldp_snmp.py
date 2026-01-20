@@ -144,11 +144,11 @@ def _collect_for_device(
     _LOGGER.debug("Parsing local port table (%d lines)", len(loc_port_result.lines))
     loc_ports = _parse_loc_port_table(loc_port_result.lines)
     _LOGGER.debug("Parsed %d local ports", len(loc_ports))
-    
+
     _LOGGER.debug("Parsing remote neighbor table (%d lines)", len(rem_result.lines))
     rem_rows = _parse_rem_table(rem_result.lines)
     _LOGGER.debug("Parsed %d remote neighbor rows", len(rem_rows))
-    
+
     if not rem_rows:
         _LOGGER.debug("LLDP remote table empty for %s", device.name)
         errors.append("LLDP_TABLE_EMPTY")
@@ -160,7 +160,7 @@ def _collect_for_device(
         local_port_norm = normalize_interface_name(local_port_raw)
         remote_port_norm = normalize_interface_name(row.remote_port)
         remote_device_name = _resolve_device_name(row.remote_sys_name, alias_map)
-        
+
         _LOGGER.debug(
             "Processing LLDP observation: %s[%s->%s] -> %s[%s->%s] (chassis: %s, sysname: %s)",
             device.name,
@@ -172,7 +172,7 @@ def _collect_for_device(
             row.remote_chassis,
             row.remote_sys_name,
         )
-        
+
         confidence = "observed"
         error_list: list[str] = []
         if UNKNOWN_VALUE in (remote_device_name, row.remote_port):
@@ -183,7 +183,7 @@ def _collect_for_device(
                 remote_device_name,
                 row.remote_port,
             )
-            
+
         observations.append(
             LinkObservation(
                 local_device=device.name,
@@ -212,13 +212,13 @@ def _resolve_device_name(raw_name: str, alias_map: dict[str, str] | None) -> str
     if alias_map is None:
         _LOGGER.debug("No alias map provided, using raw name: %s", raw_name)
         return raw_name
-    
+
     resolved = alias_map.get(raw_name.lower(), raw_name)
     if resolved != raw_name:
         _LOGGER.debug("Resolved device name '%s' -> '%s' via alias map", raw_name, resolved)
     else:
         _LOGGER.debug("Device name '%s' not found in alias map, using as-is", raw_name)
-    
+
     return resolved
 
 

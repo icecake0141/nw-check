@@ -30,9 +30,12 @@ STATUS_UNKNOWN = "UNKNOWN"
 def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list[LinkDiff]:
     """Compare To-Be links against As-Is links."""
 
-    _LOGGER.debug("Starting diff comparison: %d To-Be links vs %d As-Is links", 
-                  len(tobe_links), len(asis_links))
-    
+    _LOGGER.debug(
+        "Starting diff comparison: %d To-Be links vs %d As-Is links",
+        len(tobe_links),
+        len(asis_links),
+    )
+
     asis_by_key = {
         _canonical_key(link.device_a, link.port_a, link.device_b, link.port_b): link
         for link in asis_links
@@ -48,7 +51,7 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
             intent.device_b,
             intent.port_b_norm,
         )
-        
+
         key = _canonical_key(
             intent.device_a,
             intent.port_a_norm,
@@ -71,7 +74,7 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
         _LOGGER.debug("No exact match, searching for candidates")
         candidates = _find_candidates(intent, asis_links)
         _LOGGER.debug("Found %d candidate(s)", len(candidates))
-        
+
         if len(candidates) > 1:
             _LOGGER.debug("Multiple candidates found, marking as UNKNOWN")
             diff_results.append(
@@ -86,9 +89,13 @@ def diff_links(tobe_links: list[LinkIntent], asis_links: list[AsIsLink]) -> list
 
         if candidates:
             candidate = candidates[0]
-            _LOGGER.debug("Single candidate found: %s[%s] <-> %s[%s]",
-                         candidate.device_a, candidate.port_a,
-                         candidate.device_b, candidate.port_b)
+            _LOGGER.debug(
+                "Single candidate found: %s[%s] <-> %s[%s]",
+                candidate.device_a,
+                candidate.port_a,
+                candidate.device_b,
+                candidate.port_b,
+            )
             if _is_partial(candidate):
                 _LOGGER.debug("Candidate is partial observation")
                 diff_results.append(

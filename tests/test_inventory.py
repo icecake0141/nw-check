@@ -14,6 +14,7 @@
 from pathlib import Path
 
 import pytest
+
 from nw_check.inventory import build_device_alias_map, load_device_inventory, load_link_intents
 
 

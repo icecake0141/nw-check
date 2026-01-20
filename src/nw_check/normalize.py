@@ -56,5 +56,7 @@ def normalize_interface_name(raw_name: str) -> str:
             return result
 
     if normalized != raw_name:
-        _LOGGER.debug("Normalized interface name (dash to slash): '%s' -> '%s'", raw_name, normalized)
+        _LOGGER.debug(
+            "Normalized interface name (dash to slash): '%s' -> '%s'", raw_name, normalized
+        )
     return normalized

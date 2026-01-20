@@ -24,9 +24,9 @@ def test_configure_logging_default() -> None:
     logger = logging.getLogger()
     logger.handlers.clear()
     logger.setLevel(logging.NOTSET)
-    
+
     configure_logging("INFO", debug=False)
-    
+
     assert logger.level == logging.INFO
 
 
@@ -36,9 +36,9 @@ def test_configure_logging_debug_flag() -> None:
     logger = logging.getLogger()
     logger.handlers.clear()
     logger.setLevel(logging.NOTSET)
-    
+
     configure_logging("INFO", debug=True)
-    
+
     assert logger.level == logging.DEBUG
 
 
@@ -48,10 +48,10 @@ def test_configure_logging_debug_env_var() -> None:
     logger = logging.getLogger()
     logger.handlers.clear()
     logger.setLevel(logging.NOTSET)
-    
+
     with patch.dict(os.environ, {"NW_CHECK_DEBUG": "1"}):
         configure_logging("INFO", debug=False)
-        
+
         assert logger.level == logging.DEBUG
 
 
@@ -61,10 +61,10 @@ def test_configure_logging_debug_env_var_true() -> None:
     logger = logging.getLogger()
     logger.handlers.clear()
     logger.setLevel(logging.NOTSET)
-    
+
     with patch.dict(os.environ, {"NW_CHECK_DEBUG": "true"}):
         configure_logging("INFO", debug=False)
-        
+
         assert logger.level == logging.DEBUG
 
 
@@ -74,10 +74,10 @@ def test_configure_logging_debug_env_var_yes() -> None:
     logger = logging.getLogger()
     logger.handlers.clear()
     logger.setLevel(logging.NOTSET)
-    
+
     with patch.dict(os.environ, {"NW_CHECK_DEBUG": "yes"}):
         configure_logging("INFO", debug=False)
-        
+
         assert logger.level == logging.DEBUG
 
 
@@ -87,9 +87,8 @@ def test_configure_logging_debug_env_var_ignored_when_false() -> None:
     logger = logging.getLogger()
     logger.handlers.clear()
     logger.setLevel(logging.NOTSET)
-    
+
     with patch.dict(os.environ, {"NW_CHECK_DEBUG": "0"}):
         configure_logging("INFO", debug=False)
-        
-        assert logger.level == logging.INFO
 
+        assert logger.level == logging.INFO
